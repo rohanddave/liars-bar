@@ -175,6 +175,7 @@ public class GameImpl implements Game {
 
   @Override
   public void moveToNextMove() {
-    this.currentPlayingPlayerIndex = (this.currentPlayingPlayerIndex + 1) % this.getActivePlayers().size();
+    int numberOfActivePlayers = this.getActivePlayers().size();
+    this.currentPlayingPlayerIndex = (this.currentPlayingPlayerIndex + 1) % numberOfActivePlayers;
   }
 }

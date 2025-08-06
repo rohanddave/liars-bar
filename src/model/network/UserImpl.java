@@ -23,11 +23,13 @@ public class UserImpl implements User {
   public UserImpl(String username) {
     this.username = username;
     this.id = UUID.randomUUID().toString();
+    this.isAlive = true;
   }
 
   public UserImpl(String username, String id) { 
     this.username = username; 
     this.id = id;
+    this.isAlive = true;
   }
 
   @Override
