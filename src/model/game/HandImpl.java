@@ -6,8 +6,8 @@ import model.exceptions.HandEmptyException;
 import model.exceptions.HandFullException;
 
 public class HandImpl implements Hand {
-  private List<Card> cards;
-  private int size;
+  private final List<Card> cards;
+  private final int size;
 
   public HandImpl(List<Card> cards) {
     this.cards = cards;

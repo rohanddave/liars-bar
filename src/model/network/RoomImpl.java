@@ -1,26 +1,28 @@
 package model.network;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import model.exceptions.RoomFullException;
+import model.game.GameImpl;
+import model.game.Player;
 
 public class RoomImpl implements Room {
-  private int capacity;
-  private ArrayList<User> members;
+  private final int CAPACITY = 4;
+  private List<User> members;
 
-  public RoomImpl(int n) {
-    this.capacity = n;
-    this.members = new ArrayList<>();
+  public RoomImpl() {
+    this.members = new ArrayList<>(this.CAPACITY);
   }
 
   @Override
   public int getCapacity() {
-    return this.capacity;
+    return this.CAPACITY;
   }
 
   @Override
   public void addUser(User user) {
-    if (this.members.size() == this.capacity) {
+    if (this.members.size() == this.CAPACITY) {
       throw new RoomFullException("Room is full!");
     }
 
@@ -28,7 +30,7 @@ public class RoomImpl implements Room {
   }
 
   @Override
-  public ArrayList<User> getMembers() {
+  public List<User> getMembers() {
     return new ArrayList<User>(this.members);
   }
 }
