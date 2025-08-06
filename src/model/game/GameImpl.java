@@ -58,7 +58,10 @@ public class GameImpl implements Game {
 
   @Override
   public void startGame() {
-
+    for (Player player : this.players) {
+      Hand hand = new HandImpl(deck.drawNRandomCards(5));
+      player.setHand(hand);
+    }
   }
 
   @Override

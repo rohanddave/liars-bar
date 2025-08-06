@@ -34,13 +34,12 @@ public class Main {
             .addPlayer(rohan)
             .build();
 
+    game.startGame();
     // starting game
     while (!game.isGameOver()) {
-      for (Player player : game.getActivePlayers()) {
-        
-      }
       Player current = game.getCurrentPlayer();
       System.out.println("Currently playing player: " + current.getId());
+      printHand(current);
       Scanner sc = new Scanner(System.in);
       System.out.println("1. Play Claim \t 2. Challenge \t 3. Shoot");
       int input = sc.nextInt();
@@ -50,8 +49,7 @@ public class Main {
         int count = sc.nextInt();
         List<Card> discardedCards = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-          Hand hand = current.getHand();
-          System.out.println(hand.toString());
+          printHand(current);
           System.out.println("Enter card number to discard");
           int cardIndex = sc.nextInt();
           discardedCards.add(current.getHand().getAt(cardIndex));
@@ -69,5 +67,11 @@ public class Main {
           continue;
       }
     }
+  }
+
+  private static void printHand(Player player) {
+    System.out.println("-------Printing hand-------");
+    System.out.println(player.getHand().toString());
+    System.out.println("----------------------------");
   }
 }
