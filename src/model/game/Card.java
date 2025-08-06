@@ -5,12 +5,6 @@ package model.game;
  */
 public interface Card {
   /**
-   * Getter for suit of the card.
-   * @return Suit of the card.
-   */
-  Suit getSuit();
-
-  /**
    * Getter for the rank of the card.
    * @return Rank of the card.
    */

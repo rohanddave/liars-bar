@@ -1,17 +1,10 @@
 package model.game;
 
 public class CardImpl implements Card {
-  private Suit suit;
-  private Rank rank;
+  private final Rank rank;
 
-  public CardImpl(Suit suit, Rank rank) {
-    this.suit = suit;
+  public CardImpl(Rank rank) {
     this.rank = rank;
-  }
-
-  @Override
-  public Suit getSuit() {
-    return this.suit;
   }
 
   @Override
