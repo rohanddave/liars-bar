@@ -1,6 +1,6 @@
 package model.network;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import model.exceptions.RoomFullException;
 
@@ -26,5 +26,5 @@ public interface Room {
    * Getter for the members of the Room.
    * @return a copy of the array list of Members in the Room.
    */
-  ArrayList<User> getMembers();
+  List<User> getMembers();
 }

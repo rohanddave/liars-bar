@@ -4,14 +4,35 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class DeckImpl implements Deck {
-  private ArrayList<Card> cards;
-  private int SIZE;
-  private Random random;
+  private final ArrayList<Card> cards;
+  private final int SIZE;
+  private final Random random = new Random();
+  // TODO: change the wild card here
+  private final Rank wild = Rank.ACE;
 
   public DeckImpl(ArrayList<Card> cards) {
     this.cards = new ArrayList<>(cards);
     this.SIZE = this.cards.size();
-    this.random = new Random();
+  }
+
+  // TODO: how is the deck built?
+  public DeckImpl() {
+    int normalNumberOfCardsPerRank = 6;
+    int wildNumberOfCards = 2; 
+
+    int numberOfRanks = Rank.values().length;
+
+    this.SIZE = (numberOfRanks - 1) * normalNumberOfCardsPerRank + wildNumberOfCards;
+
+    this.cards = new ArrayList<>(this.SIZE);
+
+    for (Rank rank : Rank.values()) {
+        System.out.println(rank);
+        int limit = rank == this.wild ? wildNumberOfCards : normalNumberOfCardsPerRank;
+        for (int i = 0; i < limit; i++) { 
+          this.cards.add(new CardImpl(rank));
+        }
+    }
   }
 
   @Override

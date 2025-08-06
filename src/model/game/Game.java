@@ -2,6 +2,8 @@ package model.game;
 
 import java.util.List;
 
+import model.exceptions.GameFullException;
+
 /**
  * Class represents a game of Liars Bar.
  *
@@ -21,12 +23,17 @@ import java.util.List;
  */
 public interface Game {
 
+  void addPlayer(Player player) throws GameFullException;  
+
+  void removePlayer(Player player);
+
+  Rank getRank();
+
   /**
    * Starts a new game with the given players
-   * @param players List of players participating in the game
    * @throws IllegalArgumentException if less than 2 players or more than max allowed
    */
-  void startGame(List<Player> players);
+  void startGame();
 
   /**
    * Player plays a card and makes a claim about what they played
@@ -59,12 +66,6 @@ public interface Game {
    * @return Current state of the game
    */
   GameState getGameState();
-
-  /**
-   * Gets the current round's required suit
-   * @return The suit that must be claimed this round (ACE, KING, QUEEN, JACK)
-   */
-  Suit getCurrentRoundSuit();
 
   /**
    * Gets the last played card claim
