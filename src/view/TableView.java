@@ -1,3 +1,8 @@
+package view;
+
+import model.game.GameState;
+import model.game.Claim;
+
 public class TableView{
     public void renderCentralTable(int startRow, int startCol, GameState state) {
         // centrail claime displayer

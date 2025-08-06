@@ -15,6 +15,13 @@ public class HandImpl implements Hand {
   }
 
   @Override
+  public Card getAt(int index) throws IndexOutOfBoundsException {
+    if (index < 0 || index >= this.cards.size()) throw new IndexOutOfBoundsException();
+
+    return this.cards.get(index);
+  }
+
+  @Override
   public void add(Card card) {
     if (this.cards.size() == this.size) {
       throw new HandFullException("Hand is full!");
@@ -30,5 +37,14 @@ public class HandImpl implements Hand {
     }
 
     this.cards.remove(card);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    for (Card card: this.cards) {
+      sb.append(card.toString()).append("\t");
+    }
+    return sb.toString();
   }
 }

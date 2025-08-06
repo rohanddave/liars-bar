@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import model.exceptions.GameFullException;
+import model.exceptions.NoSuchCardException;
 
 public class GameImpl implements Game {
   private final List<Player> players;
   private final Deck deck;
   private final Rank rank;
+
+  private int currentPlayingPlayerIndex = 0;
 
   private GameImpl(Builder builder) {
     this.deck = builder.deck != null ? builder.deck : new DeckImpl();
@@ -64,6 +67,11 @@ public class GameImpl implements Game {
   }
 
   @Override
+  public void claim(Player player, int count, List<Card> cards, Rank claimedRank) throws NoSuchCardException {
+    player.claim(rank, count, cards);
+  }
+
+  @Override
   public void challengeClaim(Player player) {
 
   }
@@ -85,12 +93,12 @@ public class GameImpl implements Game {
 
   @Override
   public Player getCurrentPlayer() {
-    return null;
+    return this.players.get(currentPlayingPlayerIndex);
   }
 
   @Override
   public List<Player> getActivePlayers() {
-    return List.of();
+    return this.players;
   }
 
   @Override
@@ -126,18 +134,6 @@ public class GameImpl implements Game {
   @Override
   public void resetGame() {
 
-  }
-
-  @Override
-  public void addPlayer(Player player) throws GameFullException {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'addPlayer'");
-  }
-
-  @Override
-  public void removePlayer(Player player) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'removePlayer'");
   }
 
   @Override

@@ -11,4 +11,9 @@ public class CardImpl implements Card {
   public Rank getRank() {
     return this.rank;
   }
+
+  @Override
+  public String toString() {
+    return rank.toString();
+  }
 }
