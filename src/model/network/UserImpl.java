@@ -9,12 +9,16 @@ import model.game.Claim;
 import model.game.ClaimImpl;
 import model.game.Hand;
 import model.game.Rank;
+import model.game.Revolver;
 
 public class UserImpl implements User {
   private final String username;
   private final String id;
 
+  private boolean isAlive;
+
   private Hand hand;
+  private Revolver revolver;
 
   public UserImpl(String username) {
     this.username = username;
@@ -61,7 +65,7 @@ public class UserImpl implements User {
       this.getHand().discard(droppedCard);
     }
     
-    return new ClaimImpl(count, this);
+    return new ClaimImpl(count, this, droppedCards, rank);
   }
 
   @Override
@@ -71,12 +75,14 @@ public class UserImpl implements User {
 
   @Override
   public boolean shoot() {
-    return false;
+    boolean isBullet = this.revolver.shoot();
+    this.isAlive = !isBullet;
+    return isBullet;
   }
 
   @Override
   public boolean isAlive() {
-    return false;
+    return this.isAlive;
   }
 
   @Override
@@ -87,5 +93,15 @@ public class UserImpl implements User {
   @Override
   public void setHand(Hand hand) {
     this.hand = hand;
+  }
+
+  @Override
+  public Revolver getRevolver() {
+    return this.revolver;
+  }
+
+  @Override
+  public void setRevolver(Revolver revolver) {
+    this.revolver = revolver;
   }
 }

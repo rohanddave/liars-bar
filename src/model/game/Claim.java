@@ -1,5 +1,7 @@
 package model.game;
 
+import java.util.List;
+
 /**
  * Represents the Claim by a Player.
  */
@@ -15,4 +17,10 @@ public interface Claim {
    * @return Player that made the bid.
    */
   Player getPlayer();
+
+  List<Card> getCards();
+
+  boolean isValidClaim();
+
+  Rank getRank();
 }

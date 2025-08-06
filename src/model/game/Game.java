@@ -52,14 +52,13 @@ public interface Game {
    * @throws NoActiveClaimException if there's no claim to challenge
    * @throws NotPlayerTurnException if it's not the player's turn
    */
-  void challengeClaim(Player player);
+  Player challengeClaim(Player player);
 
   /**
    * Forces a player to spin the revolver (after losing a challenge)
    * @param player The player who must spin the revolver
-   * @return true if bullet fires (player eliminated), false if empty chamber
    */
-  boolean spinRevolver(Player player);
+  void spinRevolver(Player player);
 
   /**
    * Gets the current game state
@@ -142,4 +141,6 @@ public interface Game {
   void resetGame();
 
   void claim(Player player, int count, List<Card> cards, Rank claimedRank) throws NoSuchCardException ;
+
+  void moveToNextMove();
 }

@@ -16,4 +16,6 @@ public interface Revolver {
    * Resets the revolver.
    */
   void reset();
+
+  int getCurrentIndex();
 }

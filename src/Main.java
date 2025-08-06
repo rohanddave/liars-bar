@@ -55,13 +55,15 @@ public class Main {
           discardedCards.add(current.getHand().getAt(cardIndex));
         }
         game.claim(current, count, discardedCards, game.getRank());
+        game.moveToNextMove();
           break;
         case 2:
-          game.challengeClaim(current);
+          game.challengeClaim(current).shoot();
+          game.moveToNextMove();
           break;
         case 3:
-          game.spinRevolver(current);
           current.shoot();
+          game.moveToNextMove();
           break;
         default:
           continue;

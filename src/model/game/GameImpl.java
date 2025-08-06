@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import model.exceptions.GameFullException;
+import model.exceptions.GameNotOverException;
 import model.exceptions.NoSuchCardException;
 
 public class GameImpl implements Game {
@@ -13,10 +14,13 @@ public class GameImpl implements Game {
 
   private int currentPlayingPlayerIndex = 0;
 
+  private final List<Claim> claims;
+
   private GameImpl(Builder builder) {
     this.deck = builder.deck != null ? builder.deck : new DeckImpl();
     this.players = new ArrayList<>(builder.maxPlayers);
     this.rank = builder.rank;
+    this.claims = new ArrayList<>();
 
     // Add initial players
     this.players.addAll(builder.players);
@@ -61,6 +65,8 @@ public class GameImpl implements Game {
     for (Player player : this.players) {
       Hand hand = new HandImpl(deck.drawNRandomCards(5));
       player.setHand(hand);
+      player.setRevolver(new RevolverImpl());
+      player.getRevolver().reset();
     }
   }
 
@@ -71,17 +77,24 @@ public class GameImpl implements Game {
 
   @Override
   public void claim(Player player, int count, List<Card> cards, Rank claimedRank) throws NoSuchCardException {
-    player.claim(rank, count, cards);
+    Claim claim = player.claim(rank, count, cards);
+    this.claims.add(claim);
+    this.moveToNextMove();
   }
 
   @Override
-  public void challengeClaim(Player player) {
+  public Player challengeClaim(Player player) {
+    // TODO: throw appropriate error if player == claim.getPlayer()
 
+    Claim lastClaim = getLastClaim();
+    boolean isChallengeSuccessful = !lastClaim.isValidClaim();
+    this.moveToNextMove();
+    return isChallengeSuccessful ? lastClaim.getPlayer() : player;
   }
 
   @Override
-  public boolean spinRevolver(Player player) {
-    return false;
+  public void spinRevolver(Player player) {
+    player.getRevolver().reset();
   }
 
   @Override
@@ -91,7 +104,7 @@ public class GameImpl implements Game {
 
   @Override
   public Claim getLastClaim() {
-    return null;
+    return this.claims.getLast();
   }
 
   @Override
@@ -101,46 +114,67 @@ public class GameImpl implements Game {
 
   @Override
   public List<Player> getActivePlayers() {
-    return this.players;
+    List<Player> activePlayers = new ArrayList<>();
+    for (Player player : players) {
+      if (player.isAlive()) {
+        activePlayers.add(player);
+      }
+    }
+    return activePlayers;
   }
 
   @Override
   public List<Player> getEliminatedPlayers() {
-    return List.of();
+    List<Player> eliminatedPlayers = new ArrayList<>();
+    for (Player player : players) {
+      if (!player.isAlive()) {
+        eliminatedPlayers.add(player);
+      }
+    }
+    return eliminatedPlayers;
   }
 
   @Override
   public boolean isGameOver() {
-    return false;
+    return this.getActivePlayers().size() == 1;
   }
 
   @Override
   public Player getWinner() {
-    return null;
+    if (this.getActivePlayers().size() != 1) throw new GameNotOverException("No winner yet!");
+
+    return this.getActivePlayers().get(0);
   }
 
   @Override
   public int getRevolverChamberPosition(Player player) {
-    return 0;
+    return player.getRevolver().getCurrentIndex();
   }
 
   @Override
   public int getPlayerCardCount(Player player) {
-    return 0;
+    return player.getHand().getSize();
   }
 
   @Override
   public boolean isRoundComplete() {
-    return false;
+    // TODO: implement this when want to integrate rounds
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public void resetGame() {
-
+    // TODO: implement this when want to integrate rounds
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public Rank getRank() {
     return this.rank;
+  }
+
+  @Override
+  public void moveToNextMove() {
+    this.currentPlayingPlayerIndex = (this.currentPlayingPlayerIndex + 1) % this.getActivePlayers().size();
   }
 }

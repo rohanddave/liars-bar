@@ -21,4 +21,8 @@ public interface Player {
   Hand getHand();
 
   void setHand(Hand hand);
+
+  Revolver getRevolver();
+
+  void setRevolver(Revolver revolver);
 }

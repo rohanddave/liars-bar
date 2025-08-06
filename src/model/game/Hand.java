@@ -6,6 +6,8 @@ import model.exceptions.NoSuchCardException;
  * This class represents a hand of n cards.
  */
 public interface Hand {
+  int getSize();
+
   Card getAt(int index) throws IndexOutOfBoundsException;
 
   /**

@@ -15,6 +15,11 @@ public class HandImpl implements Hand {
   }
 
   @Override
+  public int getSize() {
+    return this.cards.size();
+  }
+
+  @Override
   public Card getAt(int index) throws IndexOutOfBoundsException {
     if (index < 0 || index >= this.cards.size()) throw new IndexOutOfBoundsException();
 
