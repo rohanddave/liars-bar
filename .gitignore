@@ -27,3 +27,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+.kiro/specs/ascii-poker-table/design.md
+.kiro/specs/ascii-poker-table/requirements.md
+.kiro/specs/ascii-poker-table/tasks.md
