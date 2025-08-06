@@ -14,7 +14,6 @@ public class TableView {
         
         // Central claim displayer
         // Revolver if applicable
-        // Last action summary
     }
     
     private void drawTableBorder(int startRow, int startCol) {
