@@ -1,3 +1,7 @@
+package view;
+
+import model.game.GameState;
+
 public class StatusBarView{
     public void renderStatusBar(int row, GameState state){
         //current round, player turn, game phase

@@ -1,23 +1,35 @@
 package model.network;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import model.game.Card;
 import model.game.Claim;
+import model.game.ClaimImpl;
 import model.game.Hand;
+import model.game.Rank;
+import model.game.Revolver;
 
 public class UserImpl implements User {
   private final String username;
   private final String id;
 
+  private boolean isAlive;
+
+  private Hand hand;
+  private Revolver revolver;
+
   public UserImpl(String username) {
     this.username = username;
     this.id = UUID.randomUUID().toString();
+    this.isAlive = true;
   }
 
   public UserImpl(String username, String id) { 
     this.username = username; 
     this.id = id;
+    this.isAlive = true;
   }
 
   @Override
@@ -31,7 +43,7 @@ public class UserImpl implements User {
     if (obj == null || getClass() != obj.getClass()) return false; // Type check
 
     User user = (UserImpl) obj;
-    return this.id == user.getId() && this.username == user.getUserName();
+    return this.id.equals(user.getId()) && this.username.equals(user.getUserName());
   }
 
   @Override
@@ -50,8 +62,12 @@ public class UserImpl implements User {
   }
 
   @Override
-  public Claim claim() {
-    return null;
+  public Claim claim(Rank rank, int count, List<Card> droppedCards) {
+    for (Card droppedCard: droppedCards) { 
+      this.getHand().discard(droppedCard);
+    }
+    
+    return new ClaimImpl(count, this, droppedCards, rank);
   }
 
   @Override
@@ -61,21 +77,33 @@ public class UserImpl implements User {
 
   @Override
   public boolean shoot() {
-    return false;
+    boolean isBullet = this.revolver.shoot();
+    this.isAlive = !isBullet;
+    return isBullet;
   }
 
   @Override
   public boolean isAlive() {
-    return false;
+    return this.isAlive;
   }
 
   @Override
   public Hand getHand() {
-    return null;
+    return this.hand;
   }
 
   @Override
   public void setHand(Hand hand) {
+    this.hand = hand;
+  }
 
+  @Override
+  public Revolver getRevolver() {
+    return this.revolver;
+  }
+
+  @Override
+  public void setRevolver(Revolver revolver) {
+    this.revolver = revolver;
   }
 }
