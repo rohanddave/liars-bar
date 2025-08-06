@@ -1,14 +1,20 @@
 package model.network;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import model.game.Card;
 import model.game.Claim;
+import model.game.ClaimImpl;
 import model.game.Hand;
+import model.game.Rank;
 
 public class UserImpl implements User {
   private final String username;
   private final String id;
+
+  private Hand hand;
 
   public UserImpl(String username) {
     this.username = username;
@@ -31,7 +37,7 @@ public class UserImpl implements User {
     if (obj == null || getClass() != obj.getClass()) return false; // Type check
 
     User user = (UserImpl) obj;
-    return this.id == user.getId() && this.username == user.getUserName();
+    return this.id.equals(user.getId()) && this.username.equals(user.getUserName());
   }
 
   @Override
@@ -50,8 +56,12 @@ public class UserImpl implements User {
   }
 
   @Override
-  public Claim claim() {
-    return null;
+  public Claim claim(Rank rank, int count, List<Card> droppedCards) {
+    for (Card droppedCard: droppedCards) { 
+      this.getHand().discard(droppedCard);
+    }
+    
+    return new ClaimImpl(count, this);
   }
 
   @Override
@@ -71,11 +81,11 @@ public class UserImpl implements User {
 
   @Override
   public Hand getHand() {
-    return null;
+    return this.hand;
   }
 
   @Override
   public void setHand(Hand hand) {
-
+    this.hand = hand;
   }
 }

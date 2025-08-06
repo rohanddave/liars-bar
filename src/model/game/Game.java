@@ -3,6 +3,11 @@ package model.game;
 import java.util.List;
 
 import model.exceptions.GameFullException;
+import model.exceptions.InvalidClaimException;
+import model.exceptions.NoActiveClaimException;
+import model.exceptions.NoCardsException;
+import model.exceptions.NoSuchCardException;
+import model.exceptions.NotPlayerTurnException;
 
 /**
  * Class represents a game of Liars Bar.
@@ -22,11 +27,6 @@ import model.exceptions.GameFullException;
  * - Last player standing wins
  */
 public interface Game {
-
-  void addPlayer(Player player) throws GameFullException;  
-
-  void removePlayer(Player player);
-
   Rank getRank();
 
   /**
@@ -140,4 +140,6 @@ public interface Game {
    * Resets the game to initial state
    */
   void resetGame();
+
+  void claim(Player player, int count, List<Card> cards, Rank claimedRank) throws NoSuchCardException ;
 }

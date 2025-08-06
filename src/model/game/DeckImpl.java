@@ -1,6 +1,7 @@
 package model.game;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class DeckImpl implements Deck {
@@ -30,6 +31,8 @@ public class DeckImpl implements Deck {
         System.out.println(rank);
         int limit = rank == this.wild ? wildNumberOfCards : normalNumberOfCardsPerRank;
         for (int i = 0; i < limit; i++) { 
+          // For Liar's Bar, we can use any suit since the game focuses on ranks
+          // Using HEARTS as default, but you could cycle through suits if needed
           this.cards.add(new CardImpl(rank));
         }
     }
@@ -46,7 +49,7 @@ public class DeckImpl implements Deck {
   }
 
   @Override
-  public Card[] drawNRandomCards(int n) {
+  public List<Card> drawNRandomCards(int n) {
     if (n < 0) {
       throw new IllegalArgumentException("Number of cards to draw cannot be negative");
     }
@@ -55,11 +58,11 @@ public class DeckImpl implements Deck {
       throw new IllegalStateException("Cannot draw " + n + " cards from deck with only " + cards.size() + " cards");
     }
 
-    Card[] drawnCards = new Card[n];
+    List<Card> drawnCards = new ArrayList<>(n);
 
     for (int i = 0; i < n; i++) {
       int randomIndex = random.nextInt(cards.size());
-      drawnCards[i] = cards.remove(randomIndex);
+      drawnCards.add(cards.remove(randomIndex));
     }
 
     return drawnCards;
