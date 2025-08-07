@@ -10,6 +10,8 @@ import model.game.ClaimImpl;
 import model.game.Hand;
 import model.game.Rank;
 import model.game.Revolver;
+import model.events.GameEventPublisher;
+import model.events.GameEventType;
 
 public class UserImpl implements User {
   private final String username;
@@ -19,6 +21,7 @@ public class UserImpl implements User {
 
   private Hand hand;
   private Revolver revolver;
+  private GameEventPublisher eventPublisher; // Optional for event publishing
 
   public UserImpl(String username) {
     this.username = username;
@@ -34,6 +37,11 @@ public class UserImpl implements User {
 
   @Override
   public String getUserName() {
+    return this.username;
+  }
+
+  @Override
+  public String getName() {
     return this.username;
   }
 
@@ -67,18 +75,33 @@ public class UserImpl implements User {
       this.getHand().discard(droppedCard);
     }
     
-    return new ClaimImpl(count, this, droppedCards, rank);
+    Claim claim = new ClaimImpl(count, this, droppedCards, rank);
+    return claim;
   }
 
   @Override
   public void challengeClaim(Claim claim) {
-
+    // Challenge logic handled by Round/Game classes
+    // Player just initiates the challenge
   }
 
   @Override
   public boolean shoot() {
+    if (eventPublisher != null) {
+      eventPublisher.publishEvent(GameEventType.PLAYER_SHOT, this.username + " is spinning the revolver and pulling the trigger...");
+    }
+    
     boolean isBullet = this.revolver.shoot();
     this.isAlive = !isBullet;
+    
+    if (eventPublisher != null) {
+      if (isBullet) {
+        eventPublisher.publishEvent(GameEventType.PLAYER_ELIMINATED, "BANG! " + this.username + " is eliminated!");
+      } else {
+        eventPublisher.publishEvent(GameEventType.PLAYER_SHOT, "Click! " + this.username + " survives this round");
+      }
+    }
+    
     return isBullet;
   }
 
@@ -105,5 +128,13 @@ public class UserImpl implements User {
   @Override
   public void setRevolver(Revolver revolver) {
     this.revolver = revolver;
+  }
+  
+  /**
+   * Sets the event publisher for this user
+   * @param eventPublisher The event publisher
+   */
+  public void setEventPublisher(GameEventPublisher eventPublisher) {
+    this.eventPublisher = eventPublisher;
   }
 }

@@ -10,6 +10,8 @@ import model.exceptions.NoSuchCardException;
 public interface Player {
   String getId();
 
+  String getName();
+
   Claim claim(Rank rank, int count, List<Card> droppedCards) throws NoSuchCardException;
 
   void challengeClaim(Claim claim);

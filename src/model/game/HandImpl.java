@@ -7,11 +7,9 @@ import model.exceptions.HandFullException;
 
 public class HandImpl implements Hand {
   private final List<Card> cards;
-  private final int size;
 
   public HandImpl(List<Card> cards) {
     this.cards = cards;
-    this.size = this.cards.size();
   }
 
   @Override
@@ -28,16 +26,13 @@ public class HandImpl implements Hand {
 
   @Override
   public void add(Card card) {
-    if (this.cards.size() == this.size) {
-      throw new HandFullException("Hand is full!");
-    }
-
+    // Note: Removed arbitrary size limit since hand size should be dynamic in the game
     this.cards.add(card);
   }
 
   @Override
   public void discard(Card card) {
-    if (this.cards.size() == 0) {
+    if (this.cards.isEmpty()) {
       throw new HandEmptyException("Hand is empty!");
     }
 

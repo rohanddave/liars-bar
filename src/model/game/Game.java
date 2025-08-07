@@ -2,7 +2,6 @@ package model.game;
 
 import java.util.List;
 
-import model.exceptions.GameFullException;
 import model.exceptions.InvalidClaimException;
 import model.exceptions.NoActiveClaimException;
 import model.exceptions.NoCardsException;
