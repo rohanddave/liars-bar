@@ -22,5 +22,9 @@ public interface Claim {
 
   boolean isValidClaim();
 
+  boolean isSettled();
+
+  void settle();
+
   Rank getRank();
 }

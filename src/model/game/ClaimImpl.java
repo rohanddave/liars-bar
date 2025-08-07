@@ -7,12 +7,22 @@ public class ClaimImpl implements Claim {
   private final Player player;
   private final List<Card> cards;
   private final Rank rank;
+  private boolean isSettled;
 
   public ClaimImpl(int count, Player player, List<Card> cards, Rank rank) {
     this.cards = cards;
     this.count = count;
     this.player = player;
     this.rank = rank;
+    this.isSettled = false;
+  }
+
+  public ClaimImpl(int count, Player player, List<Card> cards, Rank rank, boolean isSettled) {
+    this.cards = cards;
+    this.count = count;
+    this.player = player;
+    this.rank = rank;
+    this.isSettled = isSettled;
   }
 
   @Override
@@ -24,6 +34,12 @@ public class ClaimImpl implements Claim {
   public Player getPlayer() {
     return this.player;
   }
+
+  @Override
+  public boolean isSettled() { return this.isSettled; }
+
+  @Override
+  public void settle() { this.isSettled = true; }
 
   @Override
   public List<Card> getCards() {
