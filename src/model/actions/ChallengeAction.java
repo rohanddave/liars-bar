@@ -13,7 +13,9 @@ public class ChallengeAction implements GameAction {
     try {
       System.out.println("⚔️ Challenging the last claim...");
       Player loser = game.challengeClaim(player);
-      loser.shoot();
+      boolean wasEliminated = loser.shoot();
+      
+      // Always move to the next person's turn after a challenge
       game.moveToNextMove();
       
       return ActionResult.success("Challenge processed successfully", loser);
