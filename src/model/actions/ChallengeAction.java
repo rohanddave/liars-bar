@@ -15,6 +15,9 @@ public class ChallengeAction implements GameAction {
       Player loser = game.challengeClaim(player);
       boolean wasEliminated = loser.shoot();
       
+      // Mark the claim as settled after the challenge is resolved
+      game.settleLastClaim();
+      
       // Always move to the next person's turn after a challenge
       game.moveToNextMove();
       

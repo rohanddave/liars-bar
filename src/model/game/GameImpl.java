@@ -168,6 +168,13 @@ public class GameImpl implements Game {
   }
 
   @Override
+  public void settleLastClaim() {
+    if (currentRound != null) {
+      currentRound.settleLastClaim();
+    }
+  }
+
+  @Override
   public Player getCurrentPlayer() {
     if (currentRound == null) {
       return null;

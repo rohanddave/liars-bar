@@ -101,7 +101,26 @@ public class RoundImpl implements Round {
     if (claims.isEmpty()) {
       return null;
     }
-    return this.claims.get(claims.size() - 1);
+
+    Claim lastClaim = this.claims.get(this.claims.size() - 1);
+
+    return lastClaim.isSettled() ? null : lastClaim;
+  }
+
+  @Override
+  public void settleLastClaim() {
+    if (claims.isEmpty()) {
+      return;
+    }
+    
+    // Find the last unsettled claim and settle it
+    for (int i = claims.size() - 1; i >= 0; i--) {
+      Claim claim = claims.get(i);
+      if (!claim.isSettled()) {
+        claim.settle();
+        return;
+      }
+    }
   }
   
   @Override

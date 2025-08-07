@@ -52,9 +52,15 @@ public interface Round {
   
   /**
    * Gets the last claim made in this round
-   * @return The most recent claim, or null if no claims made yet
+   * @return The most recent unsettled claim, or null if no unsettled claims exist
    */
   Claim getLastClaim();
+
+  /**
+   * Settles the last claim made in this round
+   * Used after a challenge is resolved to prevent multiple challenges on the same claim
+   */
+  void settleLastClaim();
   
   /**
    * Gets the player whose turn it is
