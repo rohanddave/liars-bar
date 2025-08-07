@@ -1,6 +1,7 @@
 package model.game;
 
 import model.exceptions.NoSuchCardException;
+import java.util.List;
 
 /**
  * This class represents a hand of n cards.
@@ -21,4 +22,10 @@ public interface Hand {
    * @param card the card to be discarded.
    */
   void discard(Card card) throws NoSuchCardException;
+
+  /**
+   * Gets all cards in the hand.
+   * @return list of cards in the hand
+   */
+  List<Card> getCards();
 }

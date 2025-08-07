@@ -28,4 +28,10 @@ public class RevolverImpl implements Revolver {
   public int getCurrentIndex() {
     return this.currentIndex;
   }
+
+  @Override
+  public void forceElimination() {
+    // Force a bullet shot to eliminate the player
+    this.currentIndex = this.BULLET_INDEX;
+  }
 }

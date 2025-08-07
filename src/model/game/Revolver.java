@@ -18,4 +18,9 @@ public interface Revolver {
   void reset();
 
   int getCurrentIndex();
+
+  /**
+   * Forces elimination of the player (used when player disconnects)
+   */
+  void forceElimination();
 }

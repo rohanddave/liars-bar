@@ -40,6 +40,11 @@ public class HandImpl implements Hand {
   }
 
   @Override
+  public List<Card> getCards() {
+    return List.copyOf(this.cards); // Return immutable copy for safety
+  }
+
+  @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     for (Card card: this.cards) {

@@ -20,6 +20,10 @@ public class Main {
   public static void main(String[] args) {
     System.out.println("🎲 Welcome to Liar's Bar!");
     System.out.println("═══════════════════════════");
+    System.out.println("📝 Note: For multiplayer WebSocket mode, run:");
+    System.out.println("   java server.GameServer");
+    System.out.println("   Then open client/index.html in your browser");
+    System.out.println("═══════════════════════════");
     
     // Set up event system
     GameEventPublisher eventPublisher = new GameEventPublisher();

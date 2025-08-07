@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liar's Bar - Multiplayer</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: 3em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .connection-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            margin-left: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .connected { background: #4caf50; }
+        .disconnected { background: #f44336; }
+        .connecting { background: #ff9800; }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            min-height: 500px;
+        }
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel h3 {
+            margin-top: 0;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+        
+        .game-area {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .player-hand, .game-state, .actions {
+            background: rgba(0, 0, 0, 0.3);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .actions button {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .actions button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .input-group {
+            margin: 10px 0;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: inherit;
+        }
+        
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+        }
+        
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .message.system { background: rgba(33, 150, 243, 0.3); }
+        .message.error { background: rgba(244, 67, 54, 0.3); }
+        .message.game { background: rgba(76, 175, 80, 0.3); }
+        
+        .players-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .players-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .players-list li.current-turn {
+            background: rgba(255, 193, 7, 0.3);
+            border: 2px solid #ffc107;
+        }
+        
+        .players-list li.eliminated {
+            opacity: 0.5;
+            background: rgba(244, 67, 54, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🎲 Liar's Bar</h1>
+            <span id="connectionStatus" class="connection-status disconnected">Disconnected</span>
+        </div>
+        
+        <div class="main-content">
+            <!-- Left Panel: Connection & Room -->
+            <div class="panel">
+                <h3>🏠 Room Control</h3>
+                
+                <div class="input-group">
+                    <input type="text" id="playerName" placeholder="Enter your name" value="Player1">
+                    <input type="text" id="roomId" placeholder="Room ID (leave empty to create new)">
+                    <button onclick="joinRoom()">Join/Create Room</button>
+                    <button onclick="leaveRoom()">Leave Room</button>
+                </div>
+                
+                <div id="roomInfo">
+                    <p><strong>Room:</strong> <span id="currentRoom">None</span></p>
+                    <p><strong>Players:</strong> <span id="playerCount">0/4</span></p>
+                </div>
+                
+                <h3>👥 Players</h3>
+                <ul id="playersList" class="players-list"></ul>
+            </div>
+            
+            <!-- Center Panel: Game Area -->
+            <div class="panel game-area">
+                <div class="game-state">
+                    <h3>🎮 Game Status</h3>
+                    <p><strong>Current Round:</strong> <span id="currentRound">-</span></p>
+                    <p><strong>Current Player:</strong> <span id="currentPlayer">-</span></p>
+                    <p><strong>Last Claim:</strong> <span id="lastClaim">None</span></p>
+                </div>
+                
+                <div class="player-hand">
+                    <h3>🃏 Your Hand</h3>
+                    <div id="handCards">No cards</div>
+                </div>
+                
+                <div class="actions">
+                    <h3>⚡ Actions</h3>
+                    <div>
+                        <select id="claimRank">
+                            <option value="ACE">Aces</option>
+                            <option value="KING">Kings</option>
+                            <option value="QUEEN">Queens</option>
+                            <option value="JACK">Jacks</option>
+                        </select>
+                        <input type="number" id="claimCount" min="1" max="4" value="1" placeholder="Count">
+                        <button onclick="makeClaim()">Make Claim</button>
+                    </div>
+                    <div>
+                        <button onclick="challengeClaim()">Challenge Claim</button>
+                        <button onclick="shootRevolver()">Shoot Revolver</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Messages -->
+            <div class="panel">
+                <h3>📜 Game Log</h3>
+                <div id="messages" class="messages"></div>
+                <button onclick="clearMessages()">Clear Log</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="client.js"></script>
+</body>
+</html>
