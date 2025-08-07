@@ -15,6 +15,11 @@ public class GameImpl implements Game {
   private int currentPlayingPlayerIndex = 0;
 
   private final List<Claim> claims;
+  
+  // Round management
+  private final List<Round> rounds;
+  private int currentRoundIndex = 0;
+  private Round currentRound;
 
   private GameImpl(Builder builder) {
     this.deck = builder.deck != null ? builder.deck : new DeckImpl();
@@ -24,6 +29,16 @@ public class GameImpl implements Game {
 
     // Add initial players
     this.players.addAll(builder.players);
+    
+    // Initialize rounds (Aces, Kings, Queens, Jacks)
+    this.rounds = new ArrayList<>();
+    this.rounds.add(new RoundImpl(Rank.ACE));
+    this.rounds.add(new RoundImpl(Rank.KING));
+    this.rounds.add(new RoundImpl(Rank.QUEEN));
+    this.rounds.add(new RoundImpl(Rank.JACK));
+    
+    this.currentRoundIndex = 0;
+    this.currentRound = null;
   }
 
   public static class Builder {
@@ -62,12 +77,21 @@ public class GameImpl implements Game {
 
   @Override
   public void startGame() {
+    System.out.println("🎮 Starting new game with " + this.players.size() + " players");
+    
     for (Player player : this.players) {
       Hand hand = new HandImpl(deck.drawNRandomCards(5));
       player.setHand(hand);
       player.setRevolver(new RevolverImpl());
       player.getRevolver().reset();
+      System.out.println("  ✅ Player " + player.getName() + " initialized with 5 cards and revolver");
     }
+    
+    // Start the first round
+    this.currentRoundIndex = 0;
+    this.currentRound = this.rounds.get(currentRoundIndex);
+    System.out.println("🔄 Starting first round: " + this.currentRound.getRank());
+    this.currentRound.startRound(this.getActivePlayers());
   }
 
   @Override
@@ -77,19 +101,37 @@ public class GameImpl implements Game {
 
   @Override
   public void claim(Player player, int count, List<Card> cards, Rank claimedRank) throws NoSuchCardException {
-    Claim claim = player.claim(rank, count, cards);
-    this.claims.add(claim);
-    this.moveToNextMove();
+    if (currentRound == null) {
+      throw new IllegalStateException("No active round");
+    }
+    
+    System.out.println("🃏 Player " + player.getName() + " claims " + count + " " + claimedRank + "(s)");
+    currentRound.claim(player, count, cards, claimedRank);
+    
+    // Check if round is complete and advance to next round if needed
+    if (currentRound.isRoundComplete()) {
+      System.out.println("📍 Round complete, advancing to next round");
+      advanceToNextRound();
+    }
   }
 
   @Override
   public Player challengeClaim(Player player) {
-    // TODO: throw appropriate error if player == claim.getPlayer()
-
-    Claim lastClaim = getLastClaim();
-    boolean isChallengeSuccessful = !lastClaim.isValidClaim();
-    this.moveToNextMove();
-    return isChallengeSuccessful ? lastClaim.getPlayer() : player;
+    if (currentRound == null) {
+      throw new IllegalStateException("No active round");
+    }
+    
+    System.out.println("⚔️ Player " + player.getName() + " challenges the claim!");
+    Player loser = currentRound.challengeClaim(player);
+    System.out.println("💀 Player " + loser.getName() + " must spin the revolver");
+    
+    // Check if round is complete and advance to next round if needed
+    if (currentRound.isRoundComplete()) {
+      System.out.println("📍 Round complete, advancing to next round");
+      advanceToNextRound();
+    }
+    
+    return loser;
   }
 
   @Override
@@ -104,12 +146,18 @@ public class GameImpl implements Game {
 
   @Override
   public Claim getLastClaim() {
-    return this.claims.getLast();
+    if (currentRound == null) {
+      return null;
+    }
+    return currentRound.getLastClaim();
   }
 
   @Override
   public Player getCurrentPlayer() {
-    return this.players.get(currentPlayingPlayerIndex);
+    if (currentRound == null) {
+      return null;
+    }
+    return currentRound.getCurrentPlayer();
   }
 
   @Override
@@ -136,7 +184,11 @@ public class GameImpl implements Game {
 
   @Override
   public boolean isGameOver() {
-    return this.getActivePlayers().size() == 1;
+    boolean gameOver = this.getActivePlayers().size() == 1;
+    if (gameOver) {
+      System.out.println("🏆 Game Over! Winner: " + getWinner().getName());
+    }
+    return gameOver;
   }
 
   @Override
@@ -158,24 +210,80 @@ public class GameImpl implements Game {
 
   @Override
   public boolean isRoundComplete() {
-    // TODO: implement this when want to integrate rounds
-    throw new UnsupportedOperationException();
+    if (currentRound == null) {
+      return false;
+    }
+    return currentRound.isRoundComplete();
   }
 
   @Override
   public void resetGame() {
-    // TODO: implement this when want to integrate rounds
-    throw new UnsupportedOperationException();
+    // Reset all rounds
+    for (Round round : rounds) {
+      round.resetRound();
+    }
+    
+    // Reset game state
+    this.currentRoundIndex = 0;
+    this.currentRound = null;
+    this.claims.clear();
+    this.currentPlayingPlayerIndex = 0;
+    
+    // Reset players
+    for (Player player : players) {
+      player.setHand(null);
+      player.setRevolver(null);
+      // Note: Player.isAlive() state should be reset in player implementation
+    }
   }
 
   @Override
   public Rank getRank() {
-    return this.rank;
+    if (currentRound == null) {
+      return this.rank; // fallback to initial rank
+    }
+    return currentRound.getRank();
   }
 
   @Override
   public void moveToNextMove() {
-    int numberOfActivePlayers = this.getActivePlayers().size();
-    this.currentPlayingPlayerIndex = (this.currentPlayingPlayerIndex + 1) % numberOfActivePlayers;
+    if (currentRound != null) {
+      currentRound.moveToNextPlayer();
+      Player nextPlayer = getCurrentPlayer();
+      if (nextPlayer != null) {
+        System.out.println("🔄 Turn passed to: " + nextPlayer.getName());
+      }
+    }
+  }
+  
+  /**
+   * Advances to the next round in the sequence (Aces -> Kings -> Queens -> Jacks)
+   * If all rounds are complete, the game continues with the same round sequence
+   */
+  private void advanceToNextRound() {
+    if (isGameOver()) {
+      return; // Don't advance if game is over
+    }
+    
+    this.currentRoundIndex = (this.currentRoundIndex + 1) % this.rounds.size();
+    this.currentRound = this.rounds.get(currentRoundIndex);
+    System.out.println("🎯 Advancing to round: " + this.currentRound.getRank() + " (Round " + (currentRoundIndex + 1) + ")");
+    this.currentRound.startRound(this.getActivePlayers());
+  }
+  
+  /**
+   * Gets the current round being played
+   * @return The current round, or null if no round is active
+   */
+  public Round getCurrentRound() {
+    return this.currentRound;
+  }
+  
+  /**
+   * Gets the current round number (0-based index)
+   * @return The current round index
+   */
+  public int getCurrentRoundNumber() {
+    return this.currentRoundIndex;
   }
 }

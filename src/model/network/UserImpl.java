@@ -38,6 +38,11 @@ public class UserImpl implements User {
   }
 
   @Override
+  public String getName() {
+    return this.username;
+  }
+
+  @Override
   public boolean equals(Object obj) { 
     if (this == obj) return true; // Same reference
     if (obj == null || getClass() != obj.getClass()) return false; // Type check
@@ -63,22 +68,32 @@ public class UserImpl implements User {
 
   @Override
   public Claim claim(Rank rank, int count, List<Card> droppedCards) {
+    System.out.println("🎭 " + this.username + " is making a claim of " + count + " " + rank + "(s)");
     for (Card droppedCard: droppedCards) { 
       this.getHand().discard(droppedCard);
+      System.out.println("  📤 Discarding: " + droppedCard);
     }
     
-    return new ClaimImpl(count, this, droppedCards, rank);
+    Claim claim = new ClaimImpl(count, this, droppedCards, rank);
+    System.out.println("  ✅ Claim created successfully");
+    return claim;
   }
 
   @Override
   public void challengeClaim(Claim claim) {
-
+    System.out.println("⚔️ " + this.username + " challenges claim: " + claim.getCount() + " " + claim.getRank() + "(s)");
   }
 
   @Override
   public boolean shoot() {
+    System.out.println("🔫 " + this.username + " is spinning the revolver and pulling the trigger...");
     boolean isBullet = this.revolver.shoot();
     this.isAlive = !isBullet;
+    if (isBullet) {
+      System.out.println("💥 BANG! " + this.username + " is eliminated!");
+    } else {
+      System.out.println("🤞 Click! " + this.username + " survives this round");
+    }
     return isBullet;
   }
 
