@@ -6,6 +6,9 @@ import java.util.List;
 import model.exceptions.GameFullException;
 import model.exceptions.GameNotOverException;
 import model.exceptions.NoSuchCardException;
+import model.events.GameEventPublisher;
+import model.events.GameEventType;
+import static model.game.GameConstants.*;
 
 public class GameImpl implements Game {
   private final List<Player> players;
@@ -20,32 +23,39 @@ public class GameImpl implements Game {
   private final List<Round> rounds;
   private int currentRoundIndex = 0;
   private Round currentRound;
+  
+  // Caching for active players
+  private List<Player> cachedActivePlayers;
+  private boolean activePlayersCacheDirty = true;
+  
+  // Event publisher for observers
+  private final GameEventPublisher eventPublisher;
 
   private GameImpl(Builder builder) {
     this.deck = builder.deck != null ? builder.deck : new DeckImpl();
-    this.players = new ArrayList<>(builder.maxPlayers);
+    this.players = new ArrayList<>(MAX_PLAYERS);
     this.rank = builder.rank;
     this.claims = new ArrayList<>();
+    this.eventPublisher = builder.eventPublisher != null ? builder.eventPublisher : new GameEventPublisher();
 
     // Add initial players
     this.players.addAll(builder.players);
     
-    // Initialize rounds (Aces, Kings, Queens, Jacks)
+    // Initialize rounds using constants
     this.rounds = new ArrayList<>();
-    this.rounds.add(new RoundImpl(Rank.ACE));
-    this.rounds.add(new RoundImpl(Rank.KING));
-    this.rounds.add(new RoundImpl(Rank.QUEEN));
-    this.rounds.add(new RoundImpl(Rank.JACK));
+    for (Rank roundRank : ROUND_SEQUENCE) {
+      this.rounds.add(new RoundImpl(roundRank, eventPublisher));
+    }
     
     this.currentRoundIndex = 0;
     this.currentRound = null;
   }
 
   public static class Builder {
-    private final int maxPlayers = 4; // default
     private final List<Player> players = new ArrayList<>();
     private Deck deck;
     private Rank rank;
+    private GameEventPublisher eventPublisher;
 
     public Builder setRank(Rank rank) {
       this.rank = rank;
@@ -57,17 +67,22 @@ public class GameImpl implements Game {
       return this;
     }
 
+    public Builder withEventPublisher(GameEventPublisher eventPublisher) {
+      this.eventPublisher = eventPublisher;
+      return this;
+    }
+
     public Builder addPlayer(Player player) throws GameFullException {
-      if (players.size() >= maxPlayers) {
-        throw new GameFullException("Cannot add more than " + maxPlayers + " players.");
+      if (players.size() >= MAX_PLAYERS) {
+        throw new GameFullException("Cannot add more than " + MAX_PLAYERS + " players.");
       }
       players.add(player);
       return this;
     }
 
     public Game build() {
-      // Inject deck if provided
-      if (deck != null) {
+      // Use provided deck or create default one
+      if (this.deck == null) {
         this.deck = new DeckImpl();
       }
 
@@ -77,20 +92,20 @@ public class GameImpl implements Game {
 
   @Override
   public void startGame() {
-    System.out.println("🎮 Starting new game with " + this.players.size() + " players");
+    eventPublisher.publishEvent(GameEventType.GAME_STARTED, "Starting new game with " + this.players.size() + " players");
     
     for (Player player : this.players) {
-      Hand hand = new HandImpl(deck.drawNRandomCards(5));
+      Hand hand = new HandImpl(deck.drawNRandomCards(INITIAL_HAND_SIZE));
       player.setHand(hand);
       player.setRevolver(new RevolverImpl());
       player.getRevolver().reset();
-      System.out.println("  ✅ Player " + player.getName() + " initialized with 5 cards and revolver");
+      eventPublisher.publishEvent(GameEventType.PLAYER_INITIALIZED, 
+          "Player " + player.getName() + " initialized with " + INITIAL_HAND_SIZE + " cards and revolver");
     }
     
     // Start the first round
     this.currentRoundIndex = 0;
     this.currentRound = this.rounds.get(currentRoundIndex);
-    System.out.println("🔄 Starting first round: " + this.currentRound.getRank());
     this.currentRound.startRound(this.getActivePlayers());
   }
 
@@ -105,12 +120,11 @@ public class GameImpl implements Game {
       throw new IllegalStateException("No active round");
     }
     
-    System.out.println("🃏 Player " + player.getName() + " claims " + count + " " + claimedRank + "(s)");
+    eventPublisher.publishEvent(GameEventType.CLAIM_MADE, "Player " + player.getName() + " claims " + count + " " + claimedRank + "(s)");
     currentRound.claim(player, count, cards, claimedRank);
     
     // Check if round is complete and advance to next round if needed
     if (currentRound.isRoundComplete()) {
-      System.out.println("📍 Round complete, advancing to next round");
       advanceToNextRound();
     }
   }
@@ -121,13 +135,14 @@ public class GameImpl implements Game {
       throw new IllegalStateException("No active round");
     }
     
-    System.out.println("⚔️ Player " + player.getName() + " challenges the claim!");
+    eventPublisher.publishEvent(GameEventType.CHALLENGE_MADE, "Player " + player.getName() + " challenges the claim!");
     Player loser = currentRound.challengeClaim(player);
-    System.out.println("💀 Player " + loser.getName() + " must spin the revolver");
+    
+    // Player status may change after challenge, invalidate cache
+    invalidateActivePlayersCache();
     
     // Check if round is complete and advance to next round if needed
     if (currentRound.isRoundComplete()) {
-      System.out.println("📍 Round complete, advancing to next round");
       advanceToNextRound();
     }
     
@@ -162,40 +177,56 @@ public class GameImpl implements Game {
 
   @Override
   public List<Player> getActivePlayers() {
-    List<Player> activePlayers = new ArrayList<>();
-    for (Player player : players) {
-      if (player.isAlive()) {
-        activePlayers.add(player);
-      }
+    if (activePlayersCacheDirty || cachedActivePlayers == null) {
+      cachedActivePlayers = players.stream()
+          .filter(Player::isAlive)
+          .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+      activePlayersCacheDirty = false;
     }
-    return activePlayers;
+    return new ArrayList<>(cachedActivePlayers); // Return defensive copy
+  }
+  
+  /**
+   * Invalidates the active players cache when player status changes
+   */
+  private void invalidateActivePlayersCache() {
+    activePlayersCacheDirty = true;
   }
 
   @Override
   public List<Player> getEliminatedPlayers() {
-    List<Player> eliminatedPlayers = new ArrayList<>();
-    for (Player player : players) {
-      if (!player.isAlive()) {
-        eliminatedPlayers.add(player);
-      }
-    }
-    return eliminatedPlayers;
+    return players.stream()
+        .filter(player -> !player.isAlive())
+        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
   }
 
   @Override
   public boolean isGameOver() {
-    boolean gameOver = this.getActivePlayers().size() == 1;
-    if (gameOver) {
-      System.out.println("🏆 Game Over! Winner: " + getWinner().getName());
+    long activePlayerCount = players.stream()
+        .filter(Player::isAlive)
+        .count();
+    
+    boolean gameOver = activePlayerCount <= 1;
+    if (gameOver && activePlayerCount == 1) {
+      Player winner = players.stream()
+          .filter(Player::isAlive)
+          .findFirst()
+          .orElse(null);
+      if (winner != null) {
+        eventPublisher.publishEvent(GameEventType.GAME_ENDED, "Game Over! Winner: " + winner.getName());
+      }
     }
     return gameOver;
   }
 
   @Override
   public Player getWinner() {
-    if (this.getActivePlayers().size() != 1) throw new GameNotOverException("No winner yet!");
-
-    return this.getActivePlayers().get(0);
+    return players.stream()
+        .filter(Player::isAlive)
+        .reduce((first, second) -> {
+          throw new GameNotOverException("Multiple players still alive!");
+        })
+        .orElseThrow(() -> new GameNotOverException("No players alive!"));
   }
 
   @Override
@@ -251,7 +282,7 @@ public class GameImpl implements Game {
       currentRound.moveToNextPlayer();
       Player nextPlayer = getCurrentPlayer();
       if (nextPlayer != null) {
-        System.out.println("🔄 Turn passed to: " + nextPlayer.getName());
+        eventPublisher.publishEvent(GameEventType.TURN_CHANGED, "Turn passed to: " + nextPlayer.getName());
       }
     }
   }
@@ -267,7 +298,6 @@ public class GameImpl implements Game {
     
     this.currentRoundIndex = (this.currentRoundIndex + 1) % this.rounds.size();
     this.currentRound = this.rounds.get(currentRoundIndex);
-    System.out.println("🎯 Advancing to round: " + this.currentRound.getRank() + " (Round " + (currentRoundIndex + 1) + ")");
     this.currentRound.startRound(this.getActivePlayers());
   }
   
@@ -285,5 +315,13 @@ public class GameImpl implements Game {
    */
   public int getCurrentRoundNumber() {
     return this.currentRoundIndex;
+  }
+  
+  /**
+   * Gets the event publisher for this game
+   * @return The event publisher
+   */
+  public GameEventPublisher getEventPublisher() {
+    return this.eventPublisher;
   }
 }

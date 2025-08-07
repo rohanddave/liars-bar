@@ -7,6 +7,9 @@ import model.exceptions.InvalidClaimException;
 import model.exceptions.NoActiveClaimException;
 import model.exceptions.NoSuchCardException;
 import model.exceptions.NotPlayerTurnException;
+import model.events.GameEventPublisher;
+import model.events.GameEventType;
+import static model.game.GameConstants.*;
 
 public class RoundImpl implements Round {
   private final Rank rank;
@@ -14,13 +17,15 @@ public class RoundImpl implements Round {
   private int currentPlayerIndex;
   private final List<Claim> claims;
   private int totalClaimedCards;
+  private final GameEventPublisher eventPublisher;
   
-  public RoundImpl(Rank rank) {
+  public RoundImpl(Rank rank, GameEventPublisher eventPublisher) {
     this.rank = rank;
     this.activePlayers = new ArrayList<>();
     this.currentPlayerIndex = 0;
     this.claims = new ArrayList<>();
     this.totalClaimedCards = 0;
+    this.eventPublisher = eventPublisher;
   }
   
   @Override
@@ -30,18 +35,16 @@ public class RoundImpl implements Round {
   
   @Override
   public void startRound(List<Player> players) {
-    System.out.println("🎲 Starting round with rank: " + this.rank);
-    this.activePlayers = new ArrayList<>();
-    for (Player player : players) {
-      if (player.isAlive()) {
-        this.activePlayers.add(player);
-        System.out.println("  👤 Added active player: " + player.getName());
-      }
-    }
+    this.activePlayers = players.stream()
+        .filter(Player::isAlive)
+        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+    
     this.currentPlayerIndex = 0;
     this.claims.clear();
     this.totalClaimedCards = 0;
-    System.out.println("  📊 Round started with " + this.activePlayers.size() + " active players");
+    
+    eventPublisher.publishEvent(GameEventType.ROUND_STARTED, 
+        "Starting round with rank: " + this.rank + " (" + this.activePlayers.size() + " active players)");
   }
   
   @Override
@@ -54,11 +57,9 @@ public class RoundImpl implements Round {
       throw new NotPlayerTurnException("Not " + player.getId() + "'s turn");
     }
     
-    System.out.println("📋 Processing claim from " + player.getName() + ": " + count + " " + claimedRank + "(s)");
     Claim claim = player.claim(claimedRank, count, cards);
     this.claims.add(claim);
     this.totalClaimedCards += count;
-    System.out.println("  📈 Total claimed cards in round: " + this.totalClaimedCards + "/4");
     this.moveToNextPlayer();
   }
   
@@ -79,14 +80,15 @@ public class RoundImpl implements Round {
       throw new IllegalArgumentException("Cannot challenge your own claim");
     }
     
-    System.out.println("🔍 " + player.getName() + " challenges " + lastClaim.getPlayer().getName() + "'s claim");
     boolean isChallengeSuccessful = !lastClaim.isValidClaim();
     
+    String resultMessage;
     if (isChallengeSuccessful) {
-      System.out.println("  ✅ Challenge successful! " + lastClaim.getPlayer().getName() + " was lying");
+      resultMessage = "Challenge successful! " + lastClaim.getPlayer().getName() + " was lying";
     } else {
-      System.out.println("  ❌ Challenge failed! " + lastClaim.getPlayer().getName() + " was telling the truth");
+      resultMessage = "Challenge failed! " + lastClaim.getPlayer().getName() + " was telling the truth";
     }
+    eventPublisher.publishEvent(GameEventType.CHALLENGE_RESULT, resultMessage);
     
     this.moveToNextPlayer();
     
@@ -112,29 +114,27 @@ public class RoundImpl implements Round {
   
   @Override
   public List<Player> getActivePlayers() {
-    List<Player> currentlyActive = new ArrayList<>();
-    for (Player player : activePlayers) {
-      if (player.isAlive()) {
-        currentlyActive.add(player);
-      }
-    }
-    return currentlyActive;
+    return activePlayers.stream()
+        .filter(Player::isAlive)
+        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
   }
   
   @Override
   public boolean isRoundComplete() {
     // Round is complete if:
     // 1. Only one or fewer players remain active
-    // 2. All 4 cards of this rank have been claimed (there are 4 cards per rank in a deck)
+    // 2. All cards of this rank have been claimed (based on standard deck)
     List<Player> currentlyActive = getActivePlayers();
-    boolean complete = currentlyActive.size() <= 1 || totalClaimedCards >= 4;
+    boolean complete = currentlyActive.size() <= 1 || totalClaimedCards >= CARDS_PER_RANK;
     
     if (complete) {
+      String reason;
       if (currentlyActive.size() <= 1) {
-        System.out.println("🏁 Round complete: Only " + currentlyActive.size() + " player(s) remaining");
+        reason = "Only " + currentlyActive.size() + " player(s) remaining";
       } else {
-        System.out.println("🏁 Round complete: All 4 " + this.rank + " cards have been claimed");
+        reason = "All " + CARDS_PER_RANK + " " + this.rank + " cards have been claimed";
       }
+      eventPublisher.publishEvent(GameEventType.ROUND_ENDED, "Round complete: " + reason);
     }
     
     return complete;

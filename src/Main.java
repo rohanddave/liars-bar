@@ -10,21 +10,36 @@ import model.network.Room;
 import model.network.RoomImpl;
 import model.network.User;
 import model.network.UserImpl;
+import model.events.GameEventPublisher;
+import view.ConsoleGameEventListener;
+import model.actions.ActionFactory;
+import model.actions.GameAction;
+import model.actions.ActionResult;
 
 public class Main {
   public static void main(String[] args) {
     System.out.println("🎲 Welcome to Liar's Bar!");
     System.out.println("═══════════════════════════");
     
+    // Set up event system
+    GameEventPublisher eventPublisher = new GameEventPublisher();
+    ConsoleGameEventListener consoleListener = new ConsoleGameEventListener();
+    eventPublisher.addListener(consoleListener);
+    
     // Creating users
     System.out.println("👥 Creating players...");
     User rohan = new UserImpl("Rohan");
     User alan = new UserImpl("Alan");
     User kam = new UserImpl("Kamran");
+    
+    // Set event publishers for users
+    rohan.setEventPublisher(eventPublisher);
+    alan.setEventPublisher(eventPublisher);
+    kam.setEventPublisher(eventPublisher);
 
     // Creating a room
     System.out.println("\n🏠 Setting up game room...");
-    Room room = new RoomImpl();
+    Room room = new RoomImpl(eventPublisher);
 
     // Adding users to room
     System.out.println("📝 Adding players to room...");
@@ -33,61 +48,59 @@ public class Main {
     room.addUser(kam);
 
     System.out.println("\n🎮 Initializing game...");
-    Game game = new GameImpl.Builder()
+    GameImpl game = (GameImpl) new GameImpl.Builder()
             .addPlayer(alan)
             .addPlayer(kam)
             .addPlayer(rohan)
+            .withEventPublisher(eventPublisher)
             .build();
 
     game.startGame();
     System.out.println("\n🚀 Game started! Let the lying begin...\n");
-    // starting game
-    Scanner sc = new Scanner(System.in);
-    do {
-      Player current = game.getCurrentPlayer();
-      System.out.println("\n" + "═".repeat(50));
-      System.out.println("🎯 Current Player: " + current.getName() + " (" + current.getId() + ")");
-      System.out.println("🎲 Current Round: " + game.getRank());
-      printHand(current);
-      System.out.println("👆 Choose your action:");
-      System.out.println("1. Play Claim \t 2. Challenge \t 3. Shoot");
-      System.out.print("Enter choice: ");
-      int input = sc.nextInt();
-      switch (input) {
-        case 1:
-          System.out.print("📊 Enter count of " + game.getRank() + "(s) to claim: ");
-          int count = sc.nextInt();
-          List<Card> discardedCards = new ArrayList<>(count);
-          for (int i = 0; i < count; i++) {
-            printHand(current);
-            System.out.print("🃏 Enter card number to discard (" + (i + 1) + "/" + count + "): ");
-            int cardIndex = sc.nextInt();
-            discardedCards.add(current.getHand().getAt(cardIndex));
-          }
-          System.out.println("📝 Processing claim...");
-          game.claim(current, count, discardedCards, game.getRank());
-          game.moveToNextMove();
+    
+    // starting game with strategy pattern
+    try (Scanner sc = new Scanner(System.in)) {
+      ActionFactory actionFactory = new ActionFactory(sc);
+      
+      do {
+        Player current = game.getCurrentPlayer();
+        System.out.println("\n" + "═".repeat(50));
+        System.out.println("🎯 Current Player: " + current.getName() + " (" + current.getId() + ")");
+        System.out.println("🎲 Current Round: " + game.getRank());
+        printHand(current);
+        
+        List<GameAction> availableActions = actionFactory.getAvailableActions(game, current);
+        
+        if (availableActions.isEmpty()) {
+          System.out.println("⚠️ No valid actions available for this player.");
           break;
-        case 2:
-          System.out.println("⚔️ Challenging the last claim...");
-          game.challengeClaim(current).shoot();
-          game.moveToNextMove();
-          break;
-        case 3:
-          System.out.println("🔫 Player chooses to shoot themselves...");
-          current.shoot();
-          game.moveToNextMove();
-          break;
-        default:
+        }
+        
+        System.out.println("👆 Choose your action:");
+        for (int i = 0; i < availableActions.size(); i++) {
+          System.out.println((i + 1) + ". " + availableActions.get(i).getActionName());
+        }
+        System.out.print("Enter choice (1-" + availableActions.size() + "): ");
+        
+        int choice = sc.nextInt();
+        if (choice < 1 || choice > availableActions.size()) {
           System.out.println("❌ Invalid choice, please try again.");
           continue;
-      }
-    } while (!game.isGameOver());
+        }
+        
+        GameAction selectedAction = availableActions.get(choice - 1);
+        ActionResult result = selectedAction.execute(game, current);
+        
+        if (!result.isSuccess()) {
+          System.out.println("❌ " + result.getMessage());
+        }
+        
+      } while (!game.isGameOver());
+    }
     
     System.out.println("\n" + "═".repeat(50));
     System.out.println("🎉 GAME FINISHED! 🎉");
     System.out.println("Thanks for playing Liar's Bar!");
-    sc.close();
   }
 
   private static void printHand(Player player) {

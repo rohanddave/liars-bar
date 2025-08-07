@@ -10,6 +10,8 @@ import model.game.ClaimImpl;
 import model.game.Hand;
 import model.game.Rank;
 import model.game.Revolver;
+import model.events.GameEventPublisher;
+import model.events.GameEventType;
 
 public class UserImpl implements User {
   private final String username;
@@ -19,6 +21,7 @@ public class UserImpl implements User {
 
   private Hand hand;
   private Revolver revolver;
+  private GameEventPublisher eventPublisher; // Optional for event publishing
 
   public UserImpl(String username) {
     this.username = username;
@@ -68,32 +71,37 @@ public class UserImpl implements User {
 
   @Override
   public Claim claim(Rank rank, int count, List<Card> droppedCards) {
-    System.out.println("🎭 " + this.username + " is making a claim of " + count + " " + rank + "(s)");
     for (Card droppedCard: droppedCards) { 
       this.getHand().discard(droppedCard);
-      System.out.println("  📤 Discarding: " + droppedCard);
     }
     
     Claim claim = new ClaimImpl(count, this, droppedCards, rank);
-    System.out.println("  ✅ Claim created successfully");
     return claim;
   }
 
   @Override
   public void challengeClaim(Claim claim) {
-    System.out.println("⚔️ " + this.username + " challenges claim: " + claim.getCount() + " " + claim.getRank() + "(s)");
+    // Challenge logic handled by Round/Game classes
+    // Player just initiates the challenge
   }
 
   @Override
   public boolean shoot() {
-    System.out.println("🔫 " + this.username + " is spinning the revolver and pulling the trigger...");
+    if (eventPublisher != null) {
+      eventPublisher.publishEvent(GameEventType.PLAYER_SHOT, this.username + " is spinning the revolver and pulling the trigger...");
+    }
+    
     boolean isBullet = this.revolver.shoot();
     this.isAlive = !isBullet;
-    if (isBullet) {
-      System.out.println("💥 BANG! " + this.username + " is eliminated!");
-    } else {
-      System.out.println("🤞 Click! " + this.username + " survives this round");
+    
+    if (eventPublisher != null) {
+      if (isBullet) {
+        eventPublisher.publishEvent(GameEventType.PLAYER_ELIMINATED, "BANG! " + this.username + " is eliminated!");
+      } else {
+        eventPublisher.publishEvent(GameEventType.PLAYER_SHOT, "Click! " + this.username + " survives this round");
+      }
     }
+    
     return isBullet;
   }
 
@@ -120,5 +128,13 @@ public class UserImpl implements User {
   @Override
   public void setRevolver(Revolver revolver) {
     this.revolver = revolver;
+  }
+  
+  /**
+   * Sets the event publisher for this user
+   * @param eventPublisher The event publisher
+   */
+  public void setEventPublisher(GameEventPublisher eventPublisher) {
+    this.eventPublisher = eventPublisher;
   }
 }
