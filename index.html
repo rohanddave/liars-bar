@@ -167,6 +167,10 @@
         
         <div class="connection-controls">
             <div class="connection-input">
+                <label>Server:</label>
+                <input type="text" id="serverUrlInput" placeholder="localhost:8080" value="localhost:8080">
+            </div>
+            <div class="connection-input">
                 <label>Room:</label>
                 <input type="text" id="roomIdInput" placeholder="123" value="123">
             </div>
@@ -216,6 +220,7 @@
         let connected = false;
         let username = 'player';
         let roomId = '123';
+        let serverUrl = 'localhost:8080';
         let selectedSuggestion = -1;
         
         const gameArea = document.getElementById('gameArea');
@@ -263,7 +268,7 @@
         
         function connectToServer() {
             try {
-                const wsUrl = `ws://localhost:8080/ws/room?roomId=${roomId}&username=${username}`;
+                const wsUrl = `ws://${serverUrl}/ws/room?roomId=${roomId}&username=${username}`;
                 ws = new WebSocket(wsUrl);
                 
                 // Update connection info
@@ -505,6 +510,7 @@
         
         function manualConnect() {
             // Get values from input fields
+            serverUrl = document.getElementById('serverUrlInput').value.trim() || 'localhost:8080';
             roomId = document.getElementById('roomIdInput').value.trim() || '123';
             username = document.getElementById('usernameInput').value.trim() || 'player';
             
@@ -533,18 +539,21 @@
         function updateConnectionUI() {
             const connectButton = document.getElementById('connectButton');
             const disconnectButton = document.getElementById('disconnectButton');
+            const serverInput = document.getElementById('serverUrlInput');
             const roomInput = document.getElementById('roomIdInput');
             const usernameInput = document.getElementById('usernameInput');
             
             if (connected) {
                 connectButton.disabled = true;
                 disconnectButton.disabled = false;
+                serverInput.disabled = true;
                 roomInput.disabled = true;
                 usernameInput.disabled = true;
                 connectButton.textContent = 'Connected';
             } else {
                 connectButton.disabled = false;
                 disconnectButton.disabled = true;
+                serverInput.disabled = false;
                 roomInput.disabled = false;
                 usernameInput.disabled = false;
                 connectButton.textContent = 'Connect to Server';
