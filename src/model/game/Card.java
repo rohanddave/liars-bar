@@ -1,0 +1,12 @@
+package model.game;
+
+/**
+ * This class represents a playing card.
+ */
+public interface Card {
+  /**
+   * Getter for the rank of the card.
+   * @return Rank of the card.
+   */
+  Rank getRank();
+}
