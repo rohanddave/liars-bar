@@ -114,13 +114,69 @@
             border-color: #ff4444;
             background-color: #330000;
         }
+        .connection-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .connection-button {
+            padding: 8px 16px;
+            font-size: 12px;
+            background-color: #1a0000;
+            border: 1px solid #666;
+            color: #ff4444;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        .connection-button:hover {
+            border-color: #ff4444;
+            background-color: #330000;
+        }
+        .connection-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .connection-button.connect {
+            border-color: #44ff44;
+        }
+        .connection-button.disconnect {
+            border-color: #ff6666;
+        }
+        .connection-input {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .connection-input input {
+            padding: 4px 8px;
+            background-color: #2a0000;
+            color: #ff4444;
+            border: 1px solid #666;
+            font-family: monospace;
+            font-size: 11px;
+            width: 80px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎯 Liars Bar - Russian Roulette</h1>
         
-        <div class="status" id="connectionStatus">Connecting to server...</div>
+        <div class="status" id="connectionStatus">Disconnected</div>
+        
+        <div class="connection-controls">
+            <div class="connection-input">
+                <label>Room:</label>
+                <input type="text" id="roomIdInput" placeholder="123" value="123">
+            </div>
+            <div class="connection-input">
+                <label>Username:</label>
+                <input type="text" id="usernameInput" placeholder="player" value="player">
+            </div>
+            <button id="connectButton" class="connection-button connect" onclick="manualConnect()">Connect to Server</button>
+            <button id="disconnectButton" class="connection-button disconnect" onclick="manualDisconnect()" disabled>Disconnect</button>
+        </div>
         
         <div class="game-area" id="gameArea">
             <div>Welcome to Russian Roulette!</div>
@@ -130,9 +186,9 @@
         
         <div class="quick-commands">
             <button class="quick-command" onclick="sendCommand('start')">Start Game</button>
-            <button class="quick-command" onclick="sendCommand('claim')">Claim</button>
-            <button class="quick-command" onclick="sendCommand('claim 2')">Claim 2</button>
-            <button class="quick-command" onclick="sendCommand('claim 3')">Claim 3</button>
+            <button class="quick-command" onclick="sendCommand('claim 2 0,1')">Claim 2 (0,1)</button>
+            <button class="quick-command" onclick="sendCommand('claim 1 0')">Claim 1 (0)</button>
+            <button class="quick-command" onclick="sendCommand('claim 3 0,1,2')">Claim 3 (0,1,2)</button>
             <button class="quick-command" onclick="sendCommand('challenge')">Challenge</button>
             <button class="quick-command" onclick="sendCommand('shoot')">Shoot</button>
             <button class="quick-command" onclick="showHelp()">Help</button>
@@ -149,8 +205,8 @@
             <button onclick="sendCommand()" id="sendButton" disabled>Send</button>
         </div>
         <div class="command-help" id="commandHelp">
-            Valid commands: <strong>start</strong>, <strong>claim [number]</strong>, <strong>challenge</strong>, <strong>shoot</strong><br>
-            Aliases: <strong>c</strong>, <strong>ch</strong>, <strong>s</strong> | Examples: "start", "claim 3", "c 2", "challenge"
+            Valid commands: <strong>start</strong>, <strong>claim [count] [indices]</strong>, <strong>challenge</strong>, <strong>shoot</strong><br>
+            Aliases: <strong>ch</strong>, <strong>s</strong> | Examples: "start", "claim 2 0,1", "challenge", "shoot"
         </div>
     </div>
 
@@ -166,11 +222,10 @@
         
         // Valid commands with their patterns
         const validCommands = {
-            'claim': { pattern: /^claim(\s+\d+)?$/i, examples: ['claim', 'claim 2', 'claim 3'] },
+            'claim': { pattern: /^claim\s+\d+\s+[0-9,]+$/i, examples: ['claim 2 0,1', 'claim 1 3', 'claim 3 0,1,2'] },
             'challenge': { pattern: /^(challenge|call)$/i, examples: ['challenge', 'call'] },
             'shoot': { pattern: /^(shoot|fire|pull)$/i, examples: ['shoot', 'fire', 'pull'] },
             'start': { pattern: /^(start|begin|init)$/i, examples: ['start', 'begin', 'init'] },
-            'c': { pattern: /^c(\s+\d+)?$/i, examples: ['c', 'c 2', 'c 3'] },
             'ch': { pattern: /^ch$/i, examples: ['ch'] },
             's': { pattern: /^s$/i, examples: ['s'] }
         };
@@ -180,6 +235,10 @@
             const urlParams = new URLSearchParams(window.location.search);
             username = urlParams.get('username') || 'player';
             roomId = urlParams.get('roomId') || '123';
+            
+            // Update UI inputs with current values
+            document.getElementById('roomIdInput').value = roomId;
+            document.getElementById('usernameInput').value = username;
             
             // Update UI with current username and room
             document.title = `Liars Bar - Russian Roulette (${username} in room ${roomId})`;
@@ -210,6 +269,7 @@
                 
                 ws.onopen = function() {
                     connected = true;
+                    updateConnectionUI();
                     updateStatus(`Connected to room ${roomId}`, 'success');
                     addMessage(`Connected to Russian Roulette server as ${username}!`, 'success');
                 };
@@ -226,20 +286,21 @@
                 
                 ws.onclose = function() {
                     connected = false;
+                    updateConnectionUI();
                     updateStatus('Disconnected from server', 'error');
-                    addMessage('Connection closed. Attempting to reconnect...', 'error');
-                    setTimeout(connectToServer, 3000);
+                    addMessage('Connection closed.', 'error');
                 };
                 
                 ws.onerror = function(error) {
                     updateStatus('Connection error', 'error');
                     addMessage('Connection error occurred', 'error');
+                    updateConnectionUI();
                 };
                 
             } catch (error) {
                 updateStatus('Failed to connect', 'error');
                 addMessage('Failed to connect to server: ' + error.message, 'error');
-                setTimeout(connectToServer, 3000);
+                updateConnectionUI();
             }
         }
         
@@ -389,11 +450,13 @@
             addMessage('=== COMMAND HELP ===');
             addMessage('Available commands:');
             addMessage('• start - Start the game with current players');
-            addMessage('• claim [number] - Make a claim (e.g. "claim 3")');
+            addMessage('• claim [count] [indices] - Make a claim (e.g. "claim 2 0,1")');
+            addMessage('  - count: number of cards to claim');
+            addMessage('  - indices: comma-separated card positions to discard');
             addMessage('• challenge - Challenge the last claim');
             addMessage('• shoot - Pull the trigger');
-            addMessage('• Aliases: c (claim), ch (challenge), s (shoot)');
-            addMessage('• Examples: "start", "c 2", "challenge", "shoot"');
+            addMessage('• Aliases: ch (challenge), s (shoot)');
+            addMessage('• Examples: "start", "claim 2 0,1", "claim 1 3", "challenge"');
             addMessage('==================');
         }
         
@@ -437,9 +500,57 @@
             });
         }
         
+        function manualConnect() {
+            // Get values from input fields
+            roomId = document.getElementById('roomIdInput').value.trim() || '123';
+            username = document.getElementById('usernameInput').value.trim() || 'player';
+            
+            // Update page title
+            document.title = `Liars Bar - Russian Roulette (${username} in room ${roomId})`;
+            
+            // Close existing connection if any
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+            
+            connectToServer();
+        }
+        
+        function manualDisconnect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            connected = false;
+            updateConnectionUI();
+            updateStatus('Manually disconnected', 'error');
+            addMessage('Disconnected from server', 'error');
+        }
+        
+        function updateConnectionUI() {
+            const connectButton = document.getElementById('connectButton');
+            const disconnectButton = document.getElementById('disconnectButton');
+            const roomInput = document.getElementById('roomIdInput');
+            const usernameInput = document.getElementById('usernameInput');
+            
+            if (connected) {
+                connectButton.disabled = true;
+                disconnectButton.disabled = false;
+                roomInput.disabled = true;
+                usernameInput.disabled = true;
+                connectButton.textContent = 'Connected';
+            } else {
+                connectButton.disabled = false;
+                disconnectButton.disabled = true;
+                roomInput.disabled = false;
+                usernameInput.disabled = false;
+                connectButton.textContent = 'Connect to Server';
+            }
+        }
+        
         // Initialize on page load
         getUrlParams();
-        connectToServer();
+        updateConnectionUI();
     </script>
 </body>
 </html>

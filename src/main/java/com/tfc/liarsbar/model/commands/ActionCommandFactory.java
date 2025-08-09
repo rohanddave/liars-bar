@@ -15,18 +15,15 @@ public class ActionCommandFactory {
     
     private final CommandParser commandParser;
     private final ActionFactory actionFactory;
-    private final Scanner scanner;
-    
-    public ActionCommandFactory(GameEventPublisher eventPublisher, Scanner scanner) {
+
+    public ActionCommandFactory(GameEventPublisher eventPublisher) {
         this.commandParser = new CommandParser();
         this.actionFactory = new ActionFactory(eventPublisher);
-        this.scanner = scanner;
     }
     
     public ActionCommandFactory(CommandParser parser, ActionFactory factory, Scanner scanner) {
         this.commandParser = parser;
         this.actionFactory = factory;
-        this.scanner = scanner;
     }
     
     /**
@@ -70,7 +67,7 @@ public class ActionCommandFactory {
         String commandName = request.getCommandName().toLowerCase();
         
         return switch (commandName) {
-            case "claim" -> new ClaimCommand(request, scanner);
+            case "claim" -> new ClaimCommand(request);
             case "challenge" -> new ChallengeCommand(request);
             case "shoot" -> new ShootCommand(request);
             case "start" -> new StartCommand(request);

@@ -19,12 +19,12 @@ public class GameCommandProcessor {
     private final CommandInvoker commandInvoker;
     private final boolean enableHistory;
     
-    public GameCommandProcessor(GameEventPublisher eventPublisher, Scanner scanner) {
-        this(eventPublisher, scanner, true);
+    public GameCommandProcessor(GameEventPublisher eventPublisher) {
+        this(eventPublisher, true);
     }
     
-    public GameCommandProcessor(GameEventPublisher eventPublisher, Scanner scanner, boolean enableHistory) {
-        this.commandFactory = new ActionCommandFactory(eventPublisher, scanner);
+    public GameCommandProcessor(GameEventPublisher eventPublisher, boolean enableHistory) {
+        this.commandFactory = new ActionCommandFactory(eventPublisher);
         this.commandInvoker = enableHistory ? new CommandInvoker() : null;
         this.enableHistory = enableHistory;
     }

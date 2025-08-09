@@ -7,36 +7,35 @@ import com.tfc.liarsbar.model.game.Player;
 import java.util.List;
 import java.util.Scanner;
 import java.util.ArrayList;
+import java.util.Set;
 
 
 /**
  * Strategy for making a claim action
  */
 public class ClaimAction implements GameAction {
-  private final Scanner scanner;
-  
-  public ClaimAction(Scanner scanner) {
-    this.scanner = scanner;
+  private int claimCount;
+  private Set<Integer> discardIndices;
+
+  public ClaimAction(int claimCount, Set<Integer> discardIndices) {
+    this.claimCount = claimCount;
+    this.discardIndices = discardIndices;
   }
-  
+
   @Override
   public ActionResult execute(Game game, Player player) {
     try {
-      System.out.print("📊 Enter count of " + game.getRank() + "(s) to claim: ");
-      int count = scanner.nextInt();
-      
+      // TODO: remove hard coded count value
+      int count = this.claimCount;
       List<Card> discardedCards = new ArrayList<>(count);
-      for (int i = 0; i < count; i++) {
-        printHand(player);
-        System.out.print("🃏 Enter card number to discard (" + (i + 1) + "/" + count + "): ");
-        int cardIndex = scanner.nextInt();
+
+      for(int cardIndex: this.discardIndices) {
         discardedCards.add(player.getHand().getAt(cardIndex));
       }
-      
+
       System.out.println("📝 Processing claim...");
       game.claim(player, count, discardedCards, game.getRank());
-      game.moveToNextMove();
-      
+
       return ActionResult.success("Claim processed successfully");
       
     } catch (Exception e) {
@@ -51,9 +50,11 @@ public class ClaimAction implements GameAction {
   
   @Override
   public boolean isValidFor(Game game, Player player) {
-    return player.equals(game.getCurrentPlayer()) && 
-           player.getHand().getSize() > 0 &&
-           !game.isGameOver();
+    boolean isCurrentPlayer = player.equals(game.getCurrentPlayer());
+    boolean isValidHandSize = player.getHand().getSize() >= this.claimCount;
+
+    System.out.println("isCurrentPlayer: " + isCurrentPlayer + "\t isValidHandSize: " + isValidHandSize);
+    return isCurrentPlayer && isValidHandSize && !game.isGameOver();
   }
   
   private void printHand(Player player) {

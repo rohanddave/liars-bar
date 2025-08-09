@@ -37,15 +37,23 @@ public class ChallengeAction implements GameAction {
   @Override
   public boolean isValidFor(Game game, Player player) {
     if (game.getLastClaim() == null) {
+      System.out.println("No last claim found");
       return false;
     }
     
     Player lastClaimPlayer = game.getLastClaim().getPlayer();
-    
-    return player.equals(game.getCurrentPlayer()) && 
-           lastClaimPlayer != null &&
-           lastClaimPlayer.isAlive() && // Check if the player who made the claim is still alive
-           !player.equals(lastClaimPlayer) && // Can't challenge own claim
-           !game.isGameOver();
+
+    boolean isCurrentPlayer = player.equals(game.getCurrentPlayer());
+    boolean isLastClaimPlayerAlive = lastClaimPlayer != null &&
+            lastClaimPlayer.isAlive();
+    boolean isChallengingOwnClaim = player.equals(lastClaimPlayer);
+    boolean isGameOver = game.isGameOver();
+
+    System.out.println("isCurrentPlayer: " + isCurrentPlayer + "\t isLastClaimPlayerAlive: " + isLastClaimPlayerAlive + "\t isChallengingOwnClaim: " + isChallengingOwnClaim + "\t isGameOver: " + isGameOver);
+
+    return isCurrentPlayer &&
+           isLastClaimPlayerAlive && // Check if the player who made the claim is still alive
+           !isChallengingOwnClaim && // Can't challenge own claim
+           !isGameOver;
   }
 }

@@ -163,6 +163,8 @@ public class GameImpl implements Game {
     // Check if round is complete and advance to next round if needed
     if (currentRound.isRoundComplete()) {
       advanceToNextRound();
+    } else {
+      this.moveToNextMove();
     }
   }
 
@@ -174,7 +176,8 @@ public class GameImpl implements Game {
     
     eventPublisher.publishEvent(GameEventType.CHALLENGE_MADE, "Player " + player.getName() + " challenges the claim!");
     Player loser = currentRound.challengeClaim(player);
-    
+    loser.shoot();
+
     // Player status may change after challenge, invalidate cache
     invalidateActivePlayersCache();
     
@@ -418,7 +421,9 @@ public class GameImpl implements Game {
 
   @Override
   public void moveToNextMove() {
+    System.out.println("[GameImpl]: move to next move called");
     if (currentRound != null) {
+      System.out.println("current round != null");
       currentRound.moveToNextPlayer();
       Player nextPlayer = getCurrentPlayer();
       if (nextPlayer != null) {

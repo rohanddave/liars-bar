@@ -14,7 +14,7 @@ public class CommandParser {
     
     // Regular expressions for different command patterns
     private static final Pattern CLAIM_PATTERN = Pattern.compile(
-        "^(?:claim|play\\s+claim)(?:\\s+(\\d+))?$", Pattern.CASE_INSENSITIVE
+        "^(?:claim|play\\s+claim)\\s+(\\d+)\\s+([0-9,]+)$", Pattern.CASE_INSENSITIVE
     );
     
     private static final Pattern CHALLENGE_PATTERN = Pattern.compile(
@@ -110,7 +110,7 @@ public class CommandParser {
     }
     
     /**
-     * Parses claim command with optional count parameter
+     * Parses claim command with count and discard indices
      * @param matcher The regex matcher for claim pattern
      * @param originalInput Original input string
      * @return CommandRequest for claim command
@@ -118,19 +118,45 @@ public class CommandParser {
     private CommandRequest parseClaimCommand(Matcher matcher, String originalInput) {
         Map<String, Object> parameters = new HashMap<>();
         
-        // Extract count if provided
-        String countStr = matcher.group(1);
-        if (countStr != null) {
-            try {
-                int count = Integer.parseInt(countStr);
-                if (count > 0) {
-                    parameters.put("count", count);
-                } else {
-                    logger.warning("Invalid count in claim command: " + count);
-                }
-            } catch (NumberFormatException e) {
-                logger.warning("Could not parse count in claim command: " + countStr);
+        try {
+            // Extract count (required)
+            String countStr = matcher.group(1);
+            int count = Integer.parseInt(countStr);
+            if (count <= 0) {
+                logger.warning("Invalid count in claim command: " + count);
+                return null;
             }
+            parameters.put("count", count);
+            
+            // Extract discard indices (required)
+            String indicesStr = matcher.group(2);
+            String[] indices = indicesStr.split(",");
+            
+            if (indices.length != count) {
+                logger.warning("Number of discard indices (" + indices.length + 
+                    ") doesn't match claim count (" + count + ")");
+                return null;
+            }
+            
+            int[] discardIndices = new int[indices.length];
+            for (int i = 0; i < indices.length; i++) {
+                try {
+                    discardIndices[i] = Integer.parseInt(indices[i].trim());
+                    if (discardIndices[i] < 0) {
+                        logger.warning("Invalid discard index: " + discardIndices[i]);
+                        return null;
+                    }
+                } catch (NumberFormatException e) {
+                    logger.warning("Could not parse discard index: " + indices[i]);
+                    return null;
+                }
+            }
+            
+            parameters.put("discardIndices", discardIndices);
+            
+        } catch (Exception e) {
+            logger.severe("Error parsing claim command: " + e.getMessage());
+            return null;
         }
         
         return new CommandRequest("claim", parameters, originalInput);
@@ -157,18 +183,21 @@ public class CommandParser {
     public String getCommandHelp() {
         return """
             Available Commands:
-            • claim [count] - Make a claim (e.g., 'claim 3', 'claim')
+            • claim [count] [indices] - Make a claim (e.g., 'claim 2 0,1')
             • challenge - Challenge the last claim
             • shoot - Pull the trigger
             • start - Start the game
             
             Aliases:
-            • c [count] - Short for claim
             • ch - Short for challenge
             • s - Short for shoot
             • call - Same as challenge
             • fire/pull - Same as shoot
             • begin/init - Same as start
+            
+            Examples:
+            • claim 2 0,1 - Claim 2 cards, discard cards at indices 0 and 1
+            • claim 1 3 - Claim 1 card, discard card at index 3
             """;
     }
 }

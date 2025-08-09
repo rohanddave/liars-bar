@@ -62,7 +62,6 @@ public class RoundImpl implements Round {
     Claim claim = player.claim(claimedRank, count, cards);
     this.claims.add(claim);
     this.totalClaimedCards += count;
-    this.moveToNextPlayer();
   }
   
   @Override

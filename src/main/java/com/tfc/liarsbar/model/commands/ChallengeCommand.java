@@ -60,7 +60,7 @@ public class ChallengeCommand extends AbstractGameCommand {
             // Log the challenge result
             Object data = result.getData();
             if (data instanceof Player loser) {
-                String message = "Challenge resolved - " + loser.getName() + 
+                String message = "🔫 Click - " + loser.getName() +
                     (loser.isAlive() ? " survived" : " was eliminated");
                 System.out.println("📊 " + message);
             }

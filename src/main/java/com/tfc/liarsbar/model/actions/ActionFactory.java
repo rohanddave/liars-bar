@@ -26,10 +26,11 @@ public class ActionFactory {
   public List<GameAction> getAvailableActions(Game game, Player player) {
     List<GameAction> actions = new ArrayList<>();
     
-    ClaimAction claimAction = new ClaimAction(null); // Scanner will be injected later
-    if (claimAction.isValidFor(game, player)) {
-      actions.add(claimAction);
-    }
+    // Note: ClaimAction now requires parameters, so we skip it in generic available actions
+    // ClaimAction claimAction = new ClaimAction();
+    // if (claimAction.isValidFor(game, player)) {
+    //   actions.add(claimAction);
+    // }
     
     ChallengeAction challengeAction = new ChallengeAction();
     if (challengeAction.isValidFor(game, player)) {
@@ -51,7 +52,7 @@ public class ActionFactory {
    */
   public GameAction createAction(String actionName) {
     return switch (actionName.toLowerCase()) {
-      case "claim", "play claim" -> new ClaimAction(null); // Scanner will be injected later
+      case "claim", "play claim" -> null; // ClaimAction requires parameters, handled by CommandParser
       case "challenge" -> new ChallengeAction();
       case "shoot" -> new ShootAction();
       case "start", "begin", "init" -> new StartAction();

@@ -20,11 +20,9 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
   
   private final RoomService roomService;
   private final ConcurrentHashMap<String, GameCommandProcessor> roomProcessors = new ConcurrentHashMap<>();
-  private final Scanner scanner;
 
   public RoomWebSocketHandler() {
     this.roomService = new RoomService();
-    this.scanner = new Scanner(System.in); // For console input if needed
   }
 
   @Override
@@ -63,7 +61,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
       
       // Get or create command processor for this room
       GameCommandProcessor processor = roomProcessors.computeIfAbsent(user.getRoomId(), 
-        roomId -> new GameCommandProcessor(room.getGameEventPublisher(), scanner));
+        roomId -> new GameCommandProcessor(room.getGameEventPublisher()));
       
       // Process the command
       // Note: For now, we'll create a mock game and player since Game integration may not be complete

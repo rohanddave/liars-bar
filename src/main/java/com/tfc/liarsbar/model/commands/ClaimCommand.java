@@ -6,16 +6,32 @@ import com.tfc.liarsbar.model.game.Game;
 import com.tfc.liarsbar.model.game.Player;
 
 import java.util.Scanner;
+import java.util.Set;
 
 /**
  * Command for making claims in the game
  */
 public class ClaimCommand extends AbstractGameCommand {
-    private final Scanner scanner;
+
+    public ClaimCommand(CommandRequest request) {
+        super(request, createClaimAction(request));
+    }
     
-    public ClaimCommand(CommandRequest request, Scanner scanner) {
-        super(request, new ClaimAction(scanner));
-        this.scanner = scanner;
+    private static ClaimAction createClaimAction(CommandRequest request) {
+        Integer count = request.getIntParameter("count");
+        int[] indices = (int[]) request.getParameters().get("discardIndices");
+        
+        if (count == null || indices == null) {
+            throw new IllegalArgumentException("Claim command requires count and discardIndices parameters");
+        }
+        
+        // Convert int[] to Set<Integer>
+        Set<Integer> discardIndices = new java.util.HashSet<>();
+        for (int index : indices) {
+            discardIndices.add(index);
+        }
+        
+        return new ClaimAction(count, discardIndices);
     }
     
     @Override
@@ -47,7 +63,7 @@ public class ClaimCommand extends AbstractGameCommand {
             return false;
         }
         
-        return player.getHand() != null && player.getHand().getSize() > 0;
+        return player.getHand() != null && player.getHand().getSize() >= this.getClaimCount();
     }
     
     @Override
@@ -66,5 +82,13 @@ public class ClaimCommand extends AbstractGameCommand {
      */
     public Integer getClaimCount() {
         return request.getIntParameter("count");
+    }
+    
+    /**
+     * Gets the discard indices from the command request
+     * @return Array of discard indices or null if not specified
+     */
+    public int[] getDiscardIndices() {
+        return (int[]) request.getParameters().get("discardIndices");
     }
 }
