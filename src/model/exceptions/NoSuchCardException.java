@@ -1,7 +1,10 @@
 package model.exceptions;
 
-public class NoSuchCardException extends RuntimeException {
-  public NoSuchCardException(String message) {
-    super(message);
-  }
+/**
+ * Exception thrown when trying to access a card that doesn't exist.
+ */
+public class NoSuchCardException extends Exception {
+    public NoSuchCardException(String message) {
+        super(message);
+    }
 }
