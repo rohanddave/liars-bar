@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liars Bar - Russian Roulette</title>
+    <style>
+        body {
+            font-family: monospace;
+            background-color: #0d0d0d;
+            color: #ff4444;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .game-area {
+            border: 1px solid #ff4444;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 400px;
+            overflow-y: auto;
+            background-color: #1a0000;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            background-color: #2a0000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #330000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover {
+            background-color: #660000;
+        }
+        .status {
+            margin-bottom: 10px;
+            color: #ffff00;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .success {
+            color: #44ff44;
+        }
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .command-input {
+            position: relative;
+        }
+        .command-suggestions {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background-color: #2a0000;
+            border: 1px solid #ff4444;
+            border-bottom: none;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #660000;
+        }
+        .suggestion-item:hover, .suggestion-item.selected {
+            background-color: #660000;
+        }
+        .command-help {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .valid-command {
+            border-color: #44ff44 !important;
+        }
+        .invalid-command {
+            border-color: #ff4444 !important;
+        }
+        .quick-commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .quick-command {
+            padding: 8px 12px;
+            font-size: 12px;
+            background-color: #1a0000;
+            border: 1px solid #666;
+        }
+        .quick-command:hover {
+            border-color: #ff4444;
+            background-color: #330000;
+        }
+        .connection-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .connection-button {
+            padding: 8px 16px;
+            font-size: 12px;
+            background-color: #1a0000;
+            border: 1px solid #666;
+            color: #ff4444;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        .connection-button:hover {
+            border-color: #ff4444;
+            background-color: #330000;
+        }
+        .connection-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .connection-button.connect {
+            border-color: #44ff44;
+        }
+        .connection-button.disconnect {
+            border-color: #ff6666;
+        }
+        .connection-input {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .connection-input input {
+            padding: 4px 8px;
+            background-color: #2a0000;
+            color: #ff4444;
+            border: 1px solid #666;
+            font-family: monospace;
+            font-size: 11px;
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Liars Bar - Russian Roulette</h1>
+        
+        <div class="status" id="connectionStatus">Disconnected</div>
+        
+        <div class="connection-controls">
+            <div class="connection-input">
+                <label>Server:</label>
+                <input type="text" id="serverUrlInput" placeholder="localhost:8080" value="localhost:8080">
+            </div>
+            <div class="connection-input">
+                <label>Room:</label>
+                <input type="text" id="roomIdInput" placeholder="123" value="123">
+            </div>
+            <div class="connection-input">
+                <label>Username:</label>
+                <input type="text" id="usernameInput" placeholder="player" value="player">
+            </div>
+            <button id="connectButton" class="connection-button connect" onclick="manualConnect()">Connect to Server</button>
+            <button id="disconnectButton" class="connection-button disconnect" onclick="manualDisconnect()" disabled>Disconnect</button>
+        </div>
+        
+        <div class="game-area" id="gameArea">
+            <div>Welcome to Russian Roulette!</div>
+            <div>Loading your gun... one chamber has a bullet.</div>
+            <div id="connectionInfo">Initializing...</div>
+        </div>
+        
+        <div class="quick-commands">
+            <button class="quick-command" onclick="sendCommand('start')">Start Game</button>
+            <button class="quick-command" onclick="sendCommand('claim 2 0,1')">Claim 2 (0,1)</button>
+            <button class="quick-command" onclick="sendCommand('claim 1 0')">Claim 1 (0)</button>
+            <button class="quick-command" onclick="sendCommand('claim 3 0,1,2')">Claim 3 (0,1,2)</button>
+            <button class="quick-command" onclick="sendCommand('challenge')">Challenge</button>
+<!--            <button class="quick-command" onclick="sendCommand('show')">Show</button>-->
+<!--            <button class="quick-command" onclick="sendCommand('shoot')">Shoot</button>-->
+            <button class="quick-command" onclick="showHelp()">Help</button>
+        </div>
+        
+        <div class="input-area">
+            <div class="command-input">
+                <input type="text" id="commandInput" placeholder="Enter command: claim, challenge, show, shoot..." 
+                       oninput="validateCommand(this.value)" 
+                       onkeydown="handleCommandKeyPress(event)"
+                       autocomplete="off">
+                <div id="commandSuggestions" class="command-suggestions" style="display: none;"></div>
+            </div>
+            <button onclick="sendCommand()" id="sendButton" disabled>Send</button>
+        </div>
+        <div class="command-help" id="commandHelp">
+            Valid commands: <strong>start</strong>, <strong>claim [count] [indices]</strong>, <strong>challenge</strong>, <strong>show</strong><br>
+            Aliases: <strong>ch</strong>, <strong>s</strong> | Examples: "start", "claim 2 0,1", "challenge", "show"
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let connected = false;
+        let username = 'player';
+        let roomId = '123';
+        let serverUrl = 'localhost:8080';
+        let selectedSuggestion = -1;
+        
+        const gameArea = document.getElementById('gameArea');
+        const statusElement = document.getElementById('connectionStatus');
+        
+        // Valid commands with their patterns
+        const validCommands = {
+            'claim': { pattern: /^claim\s+\d+\s+[0-9,]+$/i, examples: ['claim 2 0,1', 'claim 1 3', 'claim 3 0,1,2'] },
+            'challenge': { pattern: /^(challenge|call)$/i, examples: ['challenge', 'call'] },
+            'shoot': { pattern: /^(shoot|fire|pull)$/i, examples: ['shoot', 'fire', 'pull'] },
+            'start': { pattern: /^(start|begin|init)$/i, examples: ['start', 'begin', 'init'] },
+            'show': { pattern: /^(show|display|info)$/i, examples: ['show', 'display', 'info'] },
+            'ch': { pattern: /^ch$/i, examples: ['ch'] },
+            's': { pattern: /^s$/i, examples: ['s'] }
+        };
+        
+        // Parse URL parameters
+        function getUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            username = urlParams.get('username') || 'player';
+            roomId = urlParams.get('roomId') || '123';
+            
+            // Update UI inputs with current values
+            document.getElementById('roomIdInput').value = roomId;
+            document.getElementById('usernameInput').value = username;
+            
+            // Update UI with current username and room
+            document.title = `Liars Bar - Russian Roulette (${username} in room ${roomId})`;
+        }
+        
+        function addMessage(message, className = '') {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (className) {
+                div.className = className;
+            }
+            gameArea.appendChild(div);
+            gameArea.scrollTop = gameArea.scrollHeight;
+        }
+        
+        function updateStatus(message, className = '') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${className}`;
+        }
+        
+        function connectToServer() {
+            try {
+                const wsUrl = `ws://${serverUrl}/ws/room?roomId=${roomId}&username=${username}`;
+                ws = new WebSocket(wsUrl);
+                
+                // Update connection info
+                document.getElementById('connectionInfo').textContent = `Connecting to room ${roomId} as ${username}...`;
+                
+                ws.onopen = function() {
+                    connected = true;
+                    updateConnectionUI();
+                    updateStatus(`Connected to room ${roomId}`, 'success');
+                    addMessage(`Connected to Russian Roulette server as ${username}!`, 'success');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleGameMessage(data);
+                    } catch (e) {
+                        // Handle plain text responses from command processor
+                        addMessage('Server: ' + event.data);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    connected = false;
+                    updateConnectionUI();
+                    updateStatus('Disconnected from server', 'error');
+                    addMessage('Connection closed.', 'error');
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('Connection error', 'error');
+                    addMessage('Connection error occurred', 'error');
+                    updateConnectionUI();
+                };
+                
+            } catch (error) {
+                updateStatus('Failed to connect', 'error');
+                addMessage('Failed to connect to server: ' + error.message, 'error');
+                updateConnectionUI();
+            }
+        }
+        
+        function handleGameMessage(data) {
+            if (data.status) {
+                // Handle command processor responses
+                if (data.status === 'success') {
+                    addMessage(`✅ ${data.message}`, 'success');
+                } else {
+                    addMessage(`❌ ${data.message}`, 'error');
+                }
+            } else if (data.error) {
+                // Handle command errors
+                addMessage(`❌ ${data.error}`, 'error');
+                if (data.help) {
+                    addMessage(`💡 ${data.help}`, 'success');
+                }
+            } else if (data.type) {
+                // Handle other game messages
+                switch (data.type) {
+                    case 'player_action':
+                        addMessage(`🎮 ${data.player}: ${data.action}`);
+                        break;
+                    case 'gameState':
+                        addMessage('Game State Updated');
+                        if (data.players) {
+                            addMessage(`Players: ${data.players.join(', ')}`);
+                        }
+                        if (data.currentPlayer) {
+                            addMessage(`Current Player: ${data.currentPlayer}`);
+                        }
+                        break;
+                    case 'playerJoined':
+                        addMessage(`${data.username} joined the game`, 'success');
+                        break;
+                    case 'playerLeft':
+                        addMessage(`${data.username} left the game`, 'error');
+                        break;
+                    case 'error':
+                        addMessage(`Error: ${data.message}`, 'error');
+                        break;
+                    default:
+                        addMessage(`Server: ${JSON.stringify(data)}`);
+                }
+            } else {
+                addMessage(`Server: ${JSON.stringify(data)}`);
+            }
+        }
+        
+        function validateCommand(input) {
+            const commandInput = document.getElementById('commandInput');
+            const sendButton = document.getElementById('sendButton');
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            
+            const trimmed = input.trim().toLowerCase();
+            let isValid = false;
+            let suggestions = [];
+            
+            if (trimmed === '') {
+                commandInput.className = '';
+                sendButton.disabled = true;
+                hideSuggestions();
+                return;
+            }
+            
+            // Check if command matches any valid pattern
+            for (const [cmd, config] of Object.entries(validCommands)) {
+                if (config.pattern.test(trimmed)) {
+                    isValid = true;
+                    break;
+                }
+            }
+            
+            // Generate suggestions for partial matches
+            if (!isValid) {
+                for (const [cmd, config] of Object.entries(validCommands)) {
+                    for (const example of config.examples) {
+                        if (example.toLowerCase().startsWith(trimmed) || 
+                            example.toLowerCase().includes(trimmed)) {
+                            suggestions.push(example);
+                        }
+                    }
+                }
+                
+                // Remove duplicates and limit suggestions
+                suggestions = [...new Set(suggestions)].slice(0, 6);
+            }
+            
+            // Update UI
+            commandInput.className = isValid ? 'valid-command' : 'invalid-command';
+            sendButton.disabled = !isValid;
+            
+            if (suggestions.length > 0 && !isValid) {
+                showSuggestions(suggestions);
+            } else {
+                hideSuggestions();
+            }
+        }
+        
+        function showSuggestions(suggestions) {
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            selectedSuggestion = -1;
+            
+            suggestionsDiv.innerHTML = suggestions.map((suggestion, index) => 
+                `<div class="suggestion-item" onclick="selectSuggestion('${suggestion}')" data-index="${index}">
+                    ${suggestion}
+                </div>`
+            ).join('');
+            
+            suggestionsDiv.style.display = 'block';
+        }
+        
+        function hideSuggestions() {
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            suggestionsDiv.style.display = 'none';
+            selectedSuggestion = -1;
+        }
+        
+        function selectSuggestion(suggestion) {
+            const commandInput = document.getElementById('commandInput');
+            commandInput.value = suggestion;
+            validateCommand(suggestion);
+            hideSuggestions();
+            commandInput.focus();
+        }
+        
+        function sendCommand(command) {
+            const commandInput = document.getElementById('commandInput');
+            
+            if (command) {
+                // Quick command button clicked
+                commandInput.value = command;
+                validateCommand(command);
+            }
+            
+            const cmd = commandInput.value.trim();
+            if (cmd && connected) {
+                // Send as plain text to WebSocket (not JSON)
+                ws.send(cmd);
+                addMessage(`You: ${cmd}`);
+                commandInput.value = '';
+                validateCommand('');
+            }
+        }
+        
+        function showHelp() {
+            addMessage('=== COMMAND HELP ===');
+            addMessage('Available commands:');
+            addMessage('• start - Start the game with current players');
+            addMessage('• claim [count] [indices] - Make a claim (e.g. "claim 2 0,1")');
+            addMessage('  - count: number of cards to claim');
+            addMessage('  - indices: comma-separated card positions to discard');
+            addMessage('• challenge - Challenge the last claim');
+            addMessage('• show - Display current game state and info');
+            addMessage('• shoot - Pull the trigger');
+            addMessage('• Aliases: ch (challenge), s (shoot)');
+            addMessage('• Examples: "start", "claim 2 0,1", "claim 1 3", "challenge", "show"');
+            addMessage('==================');
+        }
+        
+        
+        function handleCommandKeyPress(event) {
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            const suggestions = suggestionsDiv.querySelectorAll('.suggestion-item');
+            
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (selectedSuggestion >= 0 && suggestions[selectedSuggestion]) {
+                    selectSuggestion(suggestions[selectedSuggestion].textContent.trim());
+                } else {
+                    sendCommand();
+                }
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (suggestions.length > 0) {
+                    selectedSuggestion = Math.min(selectedSuggestion + 1, suggestions.length - 1);
+                    updateSuggestionSelection();
+                }
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (suggestions.length > 0) {
+                    selectedSuggestion = Math.max(selectedSuggestion - 1, -1);
+                    updateSuggestionSelection();
+                }
+            } else if (event.key === 'Escape') {
+                hideSuggestions();
+            }
+        }
+        
+        function updateSuggestionSelection() {
+            const suggestions = document.querySelectorAll('.suggestion-item');
+            suggestions.forEach((item, index) => {
+                if (index === selectedSuggestion) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        function manualConnect() {
+            // Get values from input fields
+            serverUrl = document.getElementById('serverUrlInput').value.trim() || 'localhost:8080';
+            roomId = document.getElementById('roomIdInput').value.trim() || '123';
+            username = document.getElementById('usernameInput').value.trim() || 'player';
+            
+            // Update page title
+            document.title = `Liars Bar - Russian Roulette (${username} in room ${roomId})`;
+            
+            // Close existing connection if any
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+            
+            connectToServer();
+        }
+        
+        function manualDisconnect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            connected = false;
+            updateConnectionUI();
+            updateStatus('Manually disconnected', 'error');
+            addMessage('Disconnected from server', 'error');
+        }
+        
+        function updateConnectionUI() {
+            const connectButton = document.getElementById('connectButton');
+            const disconnectButton = document.getElementById('disconnectButton');
+            const serverInput = document.getElementById('serverUrlInput');
+            const roomInput = document.getElementById('roomIdInput');
+            const usernameInput = document.getElementById('usernameInput');
+            
+            if (connected) {
+                connectButton.disabled = true;
+                disconnectButton.disabled = false;
+                serverInput.disabled = true;
+                roomInput.disabled = true;
+                usernameInput.disabled = true;
+                connectButton.textContent = 'Connected';
+            } else {
+                connectButton.disabled = false;
+                disconnectButton.disabled = true;
+                serverInput.disabled = false;
+                roomInput.disabled = false;
+                usernameInput.disabled = false;
+                connectButton.textContent = 'Connect to Server';
+            }
+        }
+        
+        // Initialize on page load
+        getUrlParams();
+        updateConnectionUI();
+    </script>
+</body>
+</html>

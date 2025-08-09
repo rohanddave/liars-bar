@@ -160,6 +160,14 @@ public class GameImpl implements Game {
     eventPublisher.publishEvent(GameEventType.CLAIM_MADE, "Player " + player.getName() + " claims " + count + " " + claimedRank + "(s)");
     currentRound.claim(player, count, cards, claimedRank);
     
+    // Check if player ran out of cards after making the claim
+    if (player.getHand() == null || player.getHand().getSize() == 0) {
+      System.out.println("Player " + player.getName() + " ran out of cards after claim");
+      eventPublisher.publishEvent(GameEventType.ROUND_ENDED, "Round complete: " + player.getName() + " ran out of cards");
+      advanceToNextRound();
+      return;
+    }
+    
     // Check if round is complete and advance to next round if needed
     if (currentRound.isRoundComplete()) {
       advanceToNextRound();
@@ -488,7 +496,10 @@ public class GameImpl implements Game {
     for (Player player : players) {
       player.setHand(null);
       player.setRevolver(null);
-      // Note: Player.isAlive() state should be reset in player implementation
+      // Reset player alive state if it's a UserImpl
+      if (player instanceof com.tfc.liarsbar.network.UserImpl) {
+        ((com.tfc.liarsbar.network.UserImpl) player).resetPlayerState();
+      }
     }
     
     // Invalidate cache
@@ -527,6 +538,18 @@ public class GameImpl implements Game {
     System.out.println("[GameImpl]: move to next move called");
     if (currentRound != null) {
       System.out.println("current round != null");
+      
+      // Check if any active players have run out of cards
+      boolean anyPlayerOutOfCards = getActivePlayers().stream()
+          .anyMatch(player -> player.getHand() == null || player.getHand().getSize() == 0);
+      
+      if (anyPlayerOutOfCards) {
+        System.out.println("Player(s) out of cards detected, advancing to next round");
+        eventPublisher.publishEvent(GameEventType.ROUND_ENDED, "Round complete: Player(s) ran out of cards");
+        advanceToNextRound();
+        return;
+      }
+      
       currentRound.moveToNextPlayer();
       Player nextPlayer = getCurrentPlayer();
       if (nextPlayer != null) {

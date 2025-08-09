@@ -152,4 +152,11 @@ public class UserImpl implements User {
 
   @Override
   public void setRoomId(String roomId) { this.roomId = roomId; }
+  
+  /**
+   * Resets the player to alive state for a new game
+   */
+  public void resetPlayerState() {
+    this.isAlive = true;
+  }
 }

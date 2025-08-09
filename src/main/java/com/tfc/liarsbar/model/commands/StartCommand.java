@@ -27,14 +27,29 @@ public class StartCommand extends AbstractGameCommand {
     
     @Override
     protected boolean isValidCommand(Game game, Player player) {
-        if (game.isGameOver()) {
-            System.out.println("Game is already over");
-            return false; // Can't start if game is already over
+        boolean isGameOver = game.isGameOver();
+        boolean isGameStarted = game.isGameStarted();
+        boolean hasEnoughPlayers = game.getActivePlayers().size() >= 2;
+        
+        System.out.println("Game validation - isGameOver: " + isGameOver + ", isGameStarted: " + isGameStarted + ", hasEnoughPlayers: " + hasEnoughPlayers);
+        
+        if (!hasEnoughPlayers) {
+            System.out.println("insufficient number of players");
+            return false;
         }
-
-        System.out.println("insufficient number of players");
-        // Check if we have enough players
-        return game.getActivePlayers().size() >= 2;
+        
+        // Allow starting if game is over (needs reset) or not started yet
+        if (isGameOver) {
+            System.out.println("Game is over, allowing restart");
+            return true;
+        }
+        
+        if (isGameStarted) {
+            System.out.println("Game is already active");
+            return false;
+        }
+        
+        return true; // Game not started yet and we have enough players
     }
     
     @Override

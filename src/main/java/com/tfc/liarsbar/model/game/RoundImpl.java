@@ -176,6 +176,17 @@ public class RoundImpl implements Round {
     
     if (!activePlayers.isEmpty()) {
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % activePlayers.size();
+      
+      // Skip players who have run out of cards
+      Player currentPlayer = getCurrentPlayer();
+      int attempts = 0;
+      while (currentPlayer != null && 
+             (currentPlayer.getHand() == null || currentPlayer.getHand().getSize() == 0) && 
+             attempts < activePlayers.size()) {
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % activePlayers.size();
+        currentPlayer = getCurrentPlayer();
+        attempts++;
+      }
     }
   }
   

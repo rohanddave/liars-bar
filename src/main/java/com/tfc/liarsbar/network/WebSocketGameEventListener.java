@@ -68,7 +68,7 @@ public class WebSocketGameEventListener implements GameEventListener {
           break;
         case PLAYER_INITIALIZED:
           // Handle player initialization (includes hand data)
-          handlePlayerInitializedEvent(event);
+          handleHandUpdatedEvent(event);
           break;
         case GAME_STARTED:
         case TURN_CHANGED:
