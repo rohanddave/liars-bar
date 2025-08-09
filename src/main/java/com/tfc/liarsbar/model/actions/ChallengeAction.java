@@ -1,0 +1,51 @@
+package com.tfc.liarsbar.model.actions;
+
+
+import com.tfc.liarsbar.model.game.Game;
+import com.tfc.liarsbar.model.game.Player;
+
+/**
+ * Strategy for challenging a claim action
+ */
+public class ChallengeAction implements GameAction {
+  
+  @Override
+  public ActionResult execute(Game game, Player player) {
+    try {
+      System.out.println("⚔️ Challenging the last claim...");
+      Player loser = game.challengeClaim(player);
+      boolean wasEliminated = loser.shoot();
+      
+      // Mark the claim as settled after the challenge is resolved
+      game.settleLastClaim();
+      
+      // Always move to the next person's turn after a challenge
+      game.moveToNextMove();
+      
+      return ActionResult.success("Challenge processed successfully", loser);
+      
+    } catch (Exception e) {
+      return ActionResult.failure("Failed to process challenge: " + e.getMessage());
+    }
+  }
+  
+  @Override
+  public String getActionName() {
+    return "Challenge";
+  }
+  
+  @Override
+  public boolean isValidFor(Game game, Player player) {
+    if (game.getLastClaim() == null) {
+      return false;
+    }
+    
+    Player lastClaimPlayer = game.getLastClaim().getPlayer();
+    
+    return player.equals(game.getCurrentPlayer()) && 
+           lastClaimPlayer != null &&
+           lastClaimPlayer.isAlive() && // Check if the player who made the claim is still alive
+           !player.equals(lastClaimPlayer) && // Can't challenge own claim
+           !game.isGameOver();
+  }
+}
