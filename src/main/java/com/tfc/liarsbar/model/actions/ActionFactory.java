@@ -54,6 +54,7 @@ public class ActionFactory {
       case "claim", "play claim" -> new ClaimAction(null); // Scanner will be injected later
       case "challenge" -> new ChallengeAction();
       case "shoot" -> new ShootAction();
+      case "start", "begin", "init" -> new StartAction();
       default -> null;
     };
   }

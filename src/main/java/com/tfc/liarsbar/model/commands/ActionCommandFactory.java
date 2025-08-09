@@ -73,6 +73,7 @@ public class ActionCommandFactory {
             case "claim" -> new ClaimCommand(request, scanner);
             case "challenge" -> new ChallengeCommand(request);
             case "shoot" -> new ShootCommand(request);
+            case "start" -> new StartCommand(request);
             default -> {
                 logger.warning("Unknown command type: " + commandName);
                 yield null;

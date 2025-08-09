@@ -25,6 +25,10 @@ public class CommandParser {
         "^(?:shoot|fire|pull)$", Pattern.CASE_INSENSITIVE
     );
     
+    private static final Pattern START_PATTERN = Pattern.compile(
+        "^(?:start|begin|init)$", Pattern.CASE_INSENSITIVE
+    );
+    
     // Command aliases mapping
     private static final Map<String, String> COMMAND_ALIASES = new HashMap<>();
     
@@ -36,6 +40,8 @@ public class CommandParser {
         COMMAND_ALIASES.put("fire", "shoot");
         COMMAND_ALIASES.put("pull", "shoot");
         COMMAND_ALIASES.put("play", "claim");
+        COMMAND_ALIASES.put("begin", "start");
+        COMMAND_ALIASES.put("init", "start");
     }
     
     /**
@@ -53,6 +59,12 @@ public class CommandParser {
         logger.info("Parsing command: " + normalizedInput);
         
         try {
+            // Try to match start command
+            Matcher startMatcher = START_PATTERN.matcher(normalizedInput);
+            if (startMatcher.matches()) {
+                return new CommandRequest("start", input);
+            }
+
             // Try to match claim command
             Matcher claimMatcher = CLAIM_PATTERN.matcher(normalizedInput);
             if (claimMatcher.matches()) {
@@ -70,7 +82,7 @@ public class CommandParser {
             if (shootMatcher.matches()) {
                 return new CommandRequest("shoot", input);
             }
-            
+
             // Try simple word-based parsing for aliases
             String[] words = normalizedInput.split("\\s+");
             if (words.length > 0) {
@@ -148,6 +160,7 @@ public class CommandParser {
             • claim [count] - Make a claim (e.g., 'claim 3', 'claim')
             • challenge - Challenge the last claim
             • shoot - Pull the trigger
+            • start - Start the game
             
             Aliases:
             • c [count] - Short for claim
@@ -155,6 +168,7 @@ public class CommandParser {
             • s - Short for shoot
             • call - Same as challenge
             • fire/pull - Same as shoot
+            • begin/init - Same as start
             """;
     }
 }

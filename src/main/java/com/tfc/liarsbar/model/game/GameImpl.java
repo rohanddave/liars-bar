@@ -7,7 +7,10 @@ import com.tfc.liarsbar.model.exceptions.GameNotOverException;
 import com.tfc.liarsbar.model.exceptions.NoSuchCardException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import lombok.Getter;
 
@@ -17,9 +20,12 @@ import static com.tfc.liarsbar.model.game.GameConstants.ROUND_SEQUENCE;
 
 
 public class GameImpl implements Game {
-  private final List<Player> players;
+  private final List<Player> players; // Keep for compatibility and ordering
+  private final Set<Player> activePlayers; // Set of currently active players
+  private final Set<Player> eliminatedPlayers; // Set of eliminated players
   private final Deck deck;
   private final Rank rank;
+  private boolean gameStarted = false; // Track if game has been started
 
   private int currentPlayingPlayerIndex = 0;
 
@@ -37,7 +43,7 @@ public class GameImpl implements Game {
   @Getter
   private Round currentRound;
   
-  // Caching for active players
+  // Caching for active players - keeping for performance but now backed by Set
   private List<Player> cachedActivePlayers;
   private boolean activePlayersCacheDirty = true;
 
@@ -51,15 +57,19 @@ public class GameImpl implements Game {
   @Getter
   private final GameEventPublisher eventPublisher;
 
-  private GameImpl(Builder builder) {
+  public GameImpl(Builder builder) {
     this.deck = builder.deck != null ? builder.deck : new DeckImpl();
     this.players = new ArrayList<>(MAX_PLAYERS);
+    this.activePlayers = new CopyOnWriteArraySet<>();
+    this.eliminatedPlayers = new CopyOnWriteArraySet<>();
     this.rank = builder.rank;
     this.claims = new ArrayList<>();
     this.eventPublisher = builder.eventPublisher != null ? builder.eventPublisher : new GameEventPublisher();
 
     // Add initial players
     this.players.addAll(builder.players);
+    // Initially all players are active
+    this.activePlayers.addAll(builder.players);
     
     // Initialize rounds using constants
     this.rounds = new ArrayList<>();
@@ -112,6 +122,10 @@ public class GameImpl implements Game {
 
   @Override
   public void startGame() {
+    if (gameStarted) {
+      throw new IllegalStateException("Game has already been started");
+    }
+    
     eventPublisher.publishEvent(GameEventType.GAME_STARTED, "Starting new game with " + this.players.size() + " players");
     
     for (Player player : this.players) {
@@ -127,6 +141,9 @@ public class GameImpl implements Game {
     this.currentRoundIndex = 0;
     this.currentRound = this.rounds.get(currentRoundIndex);
     this.currentRound.startRound(this.getActivePlayers());
+    
+    // Mark game as started
+    this.gameStarted = true;
   }
 
   @Override
@@ -205,9 +222,13 @@ public class GameImpl implements Game {
   @Override
   public List<Player> getActivePlayers() {
     if (activePlayersCacheDirty || cachedActivePlayers == null) {
-      cachedActivePlayers = players.stream()
-          .filter(Player::isAlive)
-          .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+      System.out.println("Returning active players from cache");
+      System.out.println("Total players: " + this.players.size() + ", Active set size: " + this.activePlayers.size());
+      
+      // Sync activePlayers set with actual player state
+      syncPlayerSets();
+      
+      cachedActivePlayers = new ArrayList<>(this.activePlayers);
       activePlayersCacheDirty = false;
     }
     return new ArrayList<>(cachedActivePlayers); // Return defensive copy
@@ -219,12 +240,76 @@ public class GameImpl implements Game {
   private void invalidateActivePlayersCache() {
     activePlayersCacheDirty = true;
   }
+  
+  /**
+   * Synchronizes the active and eliminated player sets with actual player states
+   */
+  private void syncPlayerSets() {
+    // Clear and rebuild sets based on current player states
+    Set<Player> currentlyActive = new CopyOnWriteArraySet<>();
+    Set<Player> currentlyEliminated = new CopyOnWriteArraySet<>();
+    
+    for (Player player : this.players) {
+      if (player.isAlive()) {
+        currentlyActive.add(player);
+      } else {
+        currentlyEliminated.add(player);
+      }
+    }
+    
+    // Update sets atomically
+    this.activePlayers.clear();
+    this.activePlayers.addAll(currentlyActive);
+    
+    this.eliminatedPlayers.clear();
+    this.eliminatedPlayers.addAll(currentlyEliminated);
+  }
+  
+  /**
+   * Eliminates a player from the game
+   * @param player The player to eliminate
+   */
+  public void eliminatePlayer(Player player) {
+    if (player == null || !this.players.contains(player)) {
+      return;
+    }
+    
+    // Move player from active to eliminated
+    this.activePlayers.remove(player);
+    this.eliminatedPlayers.add(player);
+    
+    // Invalidate cache
+    invalidateActivePlayersCache();
+    
+    eventPublisher.publishEvent(GameEventType.PLAYER_ELIMINATED, 
+        "Player " + player.getName() + " has been eliminated from the game");
+  }
+  
+  /**
+   * Removes a player completely from the game
+   * @param player The player to remove
+   */
+  public void removePlayer(Player player) {
+    if (player == null) {
+      return;
+    }
+    
+    this.players.remove(player);
+    this.activePlayers.remove(player);
+    this.eliminatedPlayers.remove(player);
+    
+    // Invalidate cache
+    invalidateActivePlayersCache();
+    
+    eventPublisher.publishEvent(GameEventType.ROOM_LEFT, 
+        "Player " + player.getName() + " left the game");
+  }
 
   @Override
   public List<Player> getEliminatedPlayers() {
-    return players.stream()
-        .filter(player -> !player.isAlive())
-        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+    // Sync player sets to ensure consistency
+    syncPlayerSets();
+    return new ArrayList<>(this.eliminatedPlayers);
   }
 
   @Override
@@ -286,6 +371,12 @@ public class GameImpl implements Game {
     this.currentRound = null;
     this.claims.clear();
     this.currentPlayingPlayerIndex = 0;
+    this.gameStarted = false;
+    
+    // Reset player sets - move all players back to active
+    this.activePlayers.clear();
+    this.eliminatedPlayers.clear();
+    this.activePlayers.addAll(this.players);
     
     // Reset players
     for (Player player : players) {
@@ -293,6 +384,28 @@ public class GameImpl implements Game {
       player.setRevolver(null);
       // Note: Player.isAlive() state should be reset in player implementation
     }
+    
+    // Invalidate cache
+    invalidateActivePlayersCache();
+  }
+
+  @Override
+  public void addPlayer(Player player) {
+    if (player == null) {
+      throw new IllegalArgumentException("Player cannot be null");
+    }
+    
+    this.players.add(player);
+    this.activePlayers.add(player);
+    
+    // Remove from eliminated set if somehow present
+    this.eliminatedPlayers.remove(player);
+    
+    // Invalidate cache since player list changed
+    invalidateActivePlayersCache();
+    
+    eventPublisher.publishEvent(GameEventType.PLAYER_INITIALIZED, 
+        "Player " + player.getName() + " joined the game");
   }
 
   @Override
@@ -328,6 +441,11 @@ public class GameImpl implements Game {
     this.currentRound.startRound(this.getActivePlayers());
   }
 
+  @Override
+  public boolean isGameStarted() {
+    return this.gameStarted;
+  }
+  
   /**
    * Gets the current round number (0-based index)
    * @return The current round index

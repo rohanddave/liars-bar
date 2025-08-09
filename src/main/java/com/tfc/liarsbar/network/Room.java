@@ -2,8 +2,8 @@ package com.tfc.liarsbar.network;
 
 import com.tfc.liarsbar.model.events.GameEventPublisher;
 import com.tfc.liarsbar.model.exceptions.RoomFullException;
+import com.tfc.liarsbar.model.game.Game;
 
-import java.util.List;
 import java.util.Set;
 
 
@@ -34,4 +34,6 @@ public interface Room {
   Set<User> getUsers();
 
   GameEventPublisher getGameEventPublisher();
+
+  Game getGame();
 }

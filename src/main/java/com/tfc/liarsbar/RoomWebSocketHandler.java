@@ -1,5 +1,6 @@
 package com.tfc.liarsbar;
 
+import com.tfc.liarsbar.model.actions.ActionResult;
 import com.tfc.liarsbar.model.commands.GameCommandProcessor;
 import com.tfc.liarsbar.network.Room;
 import com.tfc.liarsbar.network.User;
@@ -69,7 +70,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
       // This should be replaced with actual game instance retrieval
       if (processor.isValidCommand(payload)) {
         // TODO: Replace with actual Game and Player instances from room/game state
-        // ActionResult result = processor.processCommand(payload, game, player);
+         ActionResult result = processor.processCommand(payload, room.getGame(), roomService.getUserBySession(session));
         
         // For now, just acknowledge the valid command
         String response = "{\"status\":\"success\",\"message\":\"Command '" + payload + "' recognized and queued for processing\"}";

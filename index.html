@@ -64,6 +64,56 @@
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
+        .command-input {
+            position: relative;
+        }
+        .command-suggestions {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background-color: #2a0000;
+            border: 1px solid #ff4444;
+            border-bottom: none;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #660000;
+        }
+        .suggestion-item:hover, .suggestion-item.selected {
+            background-color: #660000;
+        }
+        .command-help {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .valid-command {
+            border-color: #44ff44 !important;
+        }
+        .invalid-command {
+            border-color: #ff4444 !important;
+        }
+        .quick-commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .quick-command {
+            padding: 8px 12px;
+            font-size: 12px;
+            background-color: #1a0000;
+            border: 1px solid #666;
+        }
+        .quick-command:hover {
+            border-color: #ff4444;
+            background-color: #330000;
+        }
     </style>
 </head>
 <body>
@@ -78,22 +128,29 @@
             <div id="connectionInfo">Initializing...</div>
         </div>
         
-        <div class="game-controls">
-            <button onclick="drawCard()">Draw Card</button>
-            <button onclick="playCard()">Play Card</button>
-            <button onclick="callLiar()">Call Liar</button>
-            <button onclick="pullTrigger()">Pull Trigger</button>
-            <button onclick="showHand()">Show Cards</button>
+        <div class="quick-commands">
+            <button class="quick-command" onclick="sendCommand('start')">Start Game</button>
+            <button class="quick-command" onclick="sendCommand('claim')">Claim</button>
+            <button class="quick-command" onclick="sendCommand('claim 2')">Claim 2</button>
+            <button class="quick-command" onclick="sendCommand('claim 3')">Claim 3</button>
+            <button class="quick-command" onclick="sendCommand('challenge')">Challenge</button>
+            <button class="quick-command" onclick="sendCommand('shoot')">Shoot</button>
+            <button class="quick-command" onclick="showHelp()">Help</button>
         </div>
         
         <div class="input-area">
-            <input type="text" id="messageInput" placeholder="Type a message or game action..." onkeypress="handleKeyPress(event)">
-            <button onclick="sendMessage()">Send</button>
+            <div class="command-input">
+                <input type="text" id="commandInput" placeholder="Enter command: claim, challenge, shoot..." 
+                       oninput="validateCommand(this.value)" 
+                       onkeydown="handleCommandKeyPress(event)"
+                       autocomplete="off">
+                <div id="commandSuggestions" class="command-suggestions" style="display: none;"></div>
+            </div>
+            <button onclick="sendCommand()" id="sendButton" disabled>Send</button>
         </div>
-        
-        <div class="input-area">
-            <input type="text" id="claimInput" placeholder="Make a claim (e.g., '2 Kings')" onkeypress="handleClaimKeyPress(event)">
-            <button onclick="makeClaim()">Claim</button>
+        <div class="command-help" id="commandHelp">
+            Valid commands: <strong>start</strong>, <strong>claim [number]</strong>, <strong>challenge</strong>, <strong>shoot</strong><br>
+            Aliases: <strong>c</strong>, <strong>ch</strong>, <strong>s</strong> | Examples: "start", "claim 3", "c 2", "challenge"
         </div>
     </div>
 
@@ -102,11 +159,21 @@
         let connected = false;
         let username = 'player';
         let roomId = '123';
+        let selectedSuggestion = -1;
         
         const gameArea = document.getElementById('gameArea');
         const statusElement = document.getElementById('connectionStatus');
-        const messageInput = document.getElementById('messageInput');
-        const claimInput = document.getElementById('claimInput');
+        
+        // Valid commands with their patterns
+        const validCommands = {
+            'claim': { pattern: /^claim(\s+\d+)?$/i, examples: ['claim', 'claim 2', 'claim 3'] },
+            'challenge': { pattern: /^(challenge|call)$/i, examples: ['challenge', 'call'] },
+            'shoot': { pattern: /^(shoot|fire|pull)$/i, examples: ['shoot', 'fire', 'pull'] },
+            'start': { pattern: /^(start|begin|init)$/i, examples: ['start', 'begin', 'init'] },
+            'c': { pattern: /^c(\s+\d+)?$/i, examples: ['c', 'c 2', 'c 3'] },
+            'ch': { pattern: /^ch$/i, examples: ['ch'] },
+            's': { pattern: /^s$/i, examples: ['s'] }
+        };
         
         // Parse URL parameters
         function getUrlParams() {
@@ -152,6 +219,7 @@
                         const data = JSON.parse(event.data);
                         handleGameMessage(data);
                     } catch (e) {
+                        // Handle plain text responses from command processor
                         addMessage('Server: ' + event.data);
                     }
                 };
@@ -176,8 +244,25 @@
         }
         
         function handleGameMessage(data) {
-            if (data.type) {
+            if (data.status) {
+                // Handle command processor responses
+                if (data.status === 'success') {
+                    addMessage(`✅ ${data.message}`, 'success');
+                } else {
+                    addMessage(`❌ ${data.message}`, 'error');
+                }
+            } else if (data.error) {
+                // Handle command errors
+                addMessage(`❌ ${data.error}`, 'error');
+                if (data.help) {
+                    addMessage(`💡 ${data.help}`, 'success');
+                }
+            } else if (data.type) {
+                // Handle other game messages
                 switch (data.type) {
+                    case 'player_action':
+                        addMessage(`🎮 ${data.player}: ${data.action}`);
+                        break;
                     case 'gameState':
                         addMessage('Game State Updated');
                         if (data.players) {
@@ -193,28 +278,6 @@
                     case 'playerLeft':
                         addMessage(`${data.username} left the game`, 'error');
                         break;
-                    case 'cardDrawn':
-                        addMessage(`${data.player} drew a card`);
-                        break;
-                    case 'cardPlayed':
-                        addMessage(`${data.player} played: ${data.card}`);
-                        break;
-                    case 'triggerPulled':
-                        if (data.bullet) {
-                            addMessage(`💥 ${data.player} got the bullet! They're out!`, 'error');
-                        } else {
-                            addMessage(`✅ ${data.player} survived the trigger pull`, 'success');
-                        }
-                        break;
-                    case 'claim':
-                        addMessage(`${data.player} claims: ${data.quantity} ${data.card}s`);
-                        break;
-                    case 'liarCall':
-                        addMessage(`${data.player} calls liar!`);
-                        break;
-                    case 'roundEnd':
-                        addMessage(`Round ended. ${data.winner} wins!`, 'success');
-                        break;
                     case 'error':
                         addMessage(`Error: ${data.message}`, 'error');
                         break;
@@ -226,91 +289,152 @@
             }
         }
         
-        function sendMessage() {
-            const message = messageInput.value.trim();
-            if (message && connected) {
-                ws.send(JSON.stringify({
-                    type: 'chat',
-                    message: message
-                }));
-                addMessage(`You: ${message}`);
-                messageInput.value = '';
+        function validateCommand(input) {
+            const commandInput = document.getElementById('commandInput');
+            const sendButton = document.getElementById('sendButton');
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            
+            const trimmed = input.trim().toLowerCase();
+            let isValid = false;
+            let suggestions = [];
+            
+            if (trimmed === '') {
+                commandInput.className = '';
+                sendButton.disabled = true;
+                hideSuggestions();
+                return;
             }
-        }
-        
-        function makeClaim() {
-            const claim = claimInput.value.trim();
-            if (claim && connected) {
-                const parts = claim.split(' ');
-                if (parts.length >= 2) {
-                    const quantity = parseInt(parts[0]);
-                    const card = parts[1];
-                    
-                    ws.send(JSON.stringify({
-                        type: 'claim',
-                        quantity: quantity,
-                        card: card
-                    }));
-                    addMessage(`You claim: ${quantity} ${card}s`);
-                    claimInput.value = '';
-                } else {
-                    addMessage('Invalid claim format. Use: "2 Kings" or "3 Aces"', 'error');
+            
+            // Check if command matches any valid pattern
+            for (const [cmd, config] of Object.entries(validCommands)) {
+                if (config.pattern.test(trimmed)) {
+                    isValid = true;
+                    break;
                 }
             }
-        }
-        
-        function drawCard() {
-            if (connected) {
-                ws.send(JSON.stringify({ type: 'drawCard' }));
-                addMessage('Drawing a card...');
+            
+            // Generate suggestions for partial matches
+            if (!isValid) {
+                for (const [cmd, config] of Object.entries(validCommands)) {
+                    for (const example of config.examples) {
+                        if (example.toLowerCase().startsWith(trimmed) || 
+                            example.toLowerCase().includes(trimmed)) {
+                            suggestions.push(example);
+                        }
+                    }
+                }
+                
+                // Remove duplicates and limit suggestions
+                suggestions = [...new Set(suggestions)].slice(0, 6);
+            }
+            
+            // Update UI
+            commandInput.className = isValid ? 'valid-command' : 'invalid-command';
+            sendButton.disabled = !isValid;
+            
+            if (suggestions.length > 0 && !isValid) {
+                showSuggestions(suggestions);
+            } else {
+                hideSuggestions();
             }
         }
         
-        function playCard() {
-            if (connected) {
-                ws.send(JSON.stringify({ type: 'playCard' }));
-                addMessage('Playing a card...');
+        function showSuggestions(suggestions) {
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            selectedSuggestion = -1;
+            
+            suggestionsDiv.innerHTML = suggestions.map((suggestion, index) => 
+                `<div class="suggestion-item" onclick="selectSuggestion('${suggestion}')" data-index="${index}">
+                    ${suggestion}
+                </div>`
+            ).join('');
+            
+            suggestionsDiv.style.display = 'block';
+        }
+        
+        function hideSuggestions() {
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            suggestionsDiv.style.display = 'none';
+            selectedSuggestion = -1;
+        }
+        
+        function selectSuggestion(suggestion) {
+            const commandInput = document.getElementById('commandInput');
+            commandInput.value = suggestion;
+            validateCommand(suggestion);
+            hideSuggestions();
+            commandInput.focus();
+        }
+        
+        function sendCommand(command) {
+            const commandInput = document.getElementById('commandInput');
+            
+            if (command) {
+                // Quick command button clicked
+                commandInput.value = command;
+                validateCommand(command);
+            }
+            
+            const cmd = commandInput.value.trim();
+            if (cmd && connected) {
+                // Send as plain text to WebSocket (not JSON)
+                ws.send(cmd);
+                addMessage(`You: ${cmd}`);
+                commandInput.value = '';
+                validateCommand('');
             }
         }
         
-        function pullTrigger() {
-            if (connected) {
-                ws.send(JSON.stringify({ type: 'pullTrigger' }));
-                addMessage('💀 Pulling the trigger...');
-            }
+        function showHelp() {
+            addMessage('=== COMMAND HELP ===');
+            addMessage('Available commands:');
+            addMessage('• start - Start the game with current players');
+            addMessage('• claim [number] - Make a claim (e.g. "claim 3")');
+            addMessage('• challenge - Challenge the last claim');
+            addMessage('• shoot - Pull the trigger');
+            addMessage('• Aliases: c (claim), ch (challenge), s (shoot)');
+            addMessage('• Examples: "start", "c 2", "challenge", "shoot"');
+            addMessage('==================');
         }
         
-        function callLiar() {
-            if (connected) {
-                ws.send(JSON.stringify({ type: 'callLiar' }));
-                addMessage('Calling liar!');
-            }
-        }
         
-        function passTurn() {
-            if (connected) {
-                ws.send(JSON.stringify({ type: 'pass' }));
-                addMessage('Passing turn...');
-            }
-        }
-        
-        function showHand() {
-            if (connected) {
-                ws.send(JSON.stringify({ type: 'showHand' }));
-                addMessage('Requesting cards...');
-            }
-        }
-        
-        function handleKeyPress(event) {
+        function handleCommandKeyPress(event) {
+            const suggestionsDiv = document.getElementById('commandSuggestions');
+            const suggestions = suggestionsDiv.querySelectorAll('.suggestion-item');
+            
             if (event.key === 'Enter') {
-                sendMessage();
+                event.preventDefault();
+                if (selectedSuggestion >= 0 && suggestions[selectedSuggestion]) {
+                    selectSuggestion(suggestions[selectedSuggestion].textContent.trim());
+                } else {
+                    sendCommand();
+                }
+            } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (suggestions.length > 0) {
+                    selectedSuggestion = Math.min(selectedSuggestion + 1, suggestions.length - 1);
+                    updateSuggestionSelection();
+                }
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (suggestions.length > 0) {
+                    selectedSuggestion = Math.max(selectedSuggestion - 1, -1);
+                    updateSuggestionSelection();
+                }
+            } else if (event.key === 'Escape') {
+                hideSuggestions();
             }
         }
         
-        function handleClaimKeyPress(event) {
-            if (event.key === 'Enter') {
-                makeClaim();
-            }
+        function updateSuggestionSelection() {
+            const suggestions = document.querySelectorAll('.suggestion-item');
+            suggestions.forEach((item, index) => {
+                if (index === selectedSuggestion) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
         }
         
         // Initialize on page load

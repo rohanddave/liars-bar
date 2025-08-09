@@ -3,9 +3,9 @@ package com.tfc.liarsbar.network;
 import com.tfc.liarsbar.model.events.GameEventPublisher;
 import com.tfc.liarsbar.model.events.GameEventType;
 import com.tfc.liarsbar.model.exceptions.RoomFullException;
+import com.tfc.liarsbar.model.game.Game;
+import com.tfc.liarsbar.model.game.GameImpl;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -16,16 +16,16 @@ public class RoomImpl implements Room {
   private final String id;
   private Set<User> users;
   private GameEventPublisher eventPublisher; // Optional
+  private Game game;
 
-  public RoomImpl(String id) {
-    this.id = id;
-    this.users = new CopyOnWriteArraySet<>();
-  }
-  
   public RoomImpl(String id, GameEventPublisher eventPublisher) {
     this.id = id;
     this.users = new CopyOnWriteArraySet<>();
     this.eventPublisher = eventPublisher;
+    this.game = new GameImpl
+            .Builder()
+            .withEventPublisher(eventPublisher)
+            .build();
   }
 
   @Override
@@ -45,6 +45,7 @@ public class RoomImpl implements Room {
     }
 
     this.users.add(user);
+    this.game.addPlayer(user);
     
     if (eventPublisher != null) {
       eventPublisher.publishEvent(GameEventType.ROOM_JOINED,
@@ -60,6 +61,11 @@ public class RoomImpl implements Room {
   @Override
   public GameEventPublisher getGameEventPublisher() {
     return this.eventPublisher;
+  }
+
+  @Override
+  public Game getGame() {
+    return this.game;
   }
 
   @Override

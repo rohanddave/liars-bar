@@ -23,6 +23,8 @@ import java.util.List;
  * - Last player standing wins
  */
 public interface Game {
+  void addPlayer(Player player);
+
   Rank getRank();
 
   /**
@@ -99,18 +101,6 @@ public interface Game {
    */
   Player getWinner();
 
-//  /**
-//   * Adds a game event listener to receive notifications
-//   * @param listener The listener to add
-//   */
-//  void addGameEventListener(GameEventListener listener);
-//
-//  /**
-//   * Removes a game event listener
-//   * @param listener The listener to remove
-//   */
-//  void removeGameEventListener(GameEventListener listener);
-
   /**
    * Gets the current revolver chamber position for a player
    * Used for UI display purposes
@@ -140,4 +130,10 @@ public interface Game {
   void claim(Player player, int count, List<Card> cards, Rank claimedRank) throws NoSuchCardException;
 
   void moveToNextMove();
+  
+  /**
+   * Checks if the game has been started
+   * @return true if game has been started, false otherwise
+   */
+  boolean isGameStarted();
 }
