@@ -15,5 +15,6 @@ public enum GameEventType {
   PLAYER_SHOT,
   PLAYER_ELIMINATED,
   TURN_CHANGED,
-  ROOM_JOINED
+  ROOM_JOINED,
+  ROOM_LEFT
 }

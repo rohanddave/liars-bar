@@ -1,20 +1,20 @@
 package com.tfc.liarsbar.model.actions;
 
+import com.tfc.liarsbar.model.events.GameEventPublisher;
 import com.tfc.liarsbar.model.game.Game;
 import com.tfc.liarsbar.model.game.Player;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Scanner;
 
 /**
  * Factory for creating game actions
  */
 public class ActionFactory {
-  private final Scanner scanner;
-  
-  public ActionFactory(Scanner scanner) {
-    this.scanner = scanner;
+  private final GameEventPublisher gameEventPublisher;
+
+  public ActionFactory(GameEventPublisher gameEventPublisher) {
+    this.gameEventPublisher = gameEventPublisher;
   }
   
   /**
@@ -26,7 +26,7 @@ public class ActionFactory {
   public List<GameAction> getAvailableActions(Game game, Player player) {
     List<GameAction> actions = new ArrayList<>();
     
-    ClaimAction claimAction = new ClaimAction(scanner);
+    ClaimAction claimAction = new ClaimAction(null); // Scanner will be injected later
     if (claimAction.isValidFor(game, player)) {
       actions.add(claimAction);
     }
@@ -50,16 +50,11 @@ public class ActionFactory {
    * @return The action instance or null if not found
    */
   public GameAction createAction(String actionName) {
-    switch (actionName.toLowerCase()) {
-      case "claim":
-      case "play claim":
-        return new ClaimAction(scanner);
-      case "challenge":
-        return new ChallengeAction();
-      case "shoot":
-        return new ShootAction();
-      default:
-        return null;
-    }
+    return switch (actionName.toLowerCase()) {
+      case "claim", "play claim" -> new ClaimAction(null); // Scanner will be injected later
+      case "challenge" -> new ChallengeAction();
+      case "shoot" -> new ShootAction();
+      default -> null;
+    };
   }
 }
