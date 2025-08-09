@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liars Bar - Russian Roulette</title>
+    <style>
+        body {
+            font-family: monospace;
+            background-color: #0d0d0d;
+            color: #ff4444;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .game-area {
+            border: 1px solid #ff4444;
+            padding: 20px;
+            margin-bottom: 20px;
+            height: 400px;
+            overflow-y: auto;
+            background-color: #1a0000;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            background-color: #2a0000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #330000;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover {
+            background-color: #660000;
+        }
+        .status {
+            margin-bottom: 10px;
+            color: #ffff00;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .success {
+            color: #44ff44;
+        }
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Liars Bar - Russian Roulette</h1>
+        
+        <div class="status" id="connectionStatus">Connecting to server...</div>
+        
+        <div class="game-area" id="gameArea">
+            <div>Welcome to Russian Roulette!</div>
+            <div>Loading your gun... one chamber has a bullet.</div>
+            <div id="connectionInfo">Initializing...</div>
+        </div>
+        
+        <div class="game-controls">
+            <button onclick="drawCard()">Draw Card</button>
+            <button onclick="playCard()">Play Card</button>
+            <button onclick="callLiar()">Call Liar</button>
+            <button onclick="pullTrigger()">Pull Trigger</button>
+            <button onclick="showHand()">Show Cards</button>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Type a message or game action..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="claimInput" placeholder="Make a claim (e.g., '2 Kings')" onkeypress="handleClaimKeyPress(event)">
+            <button onclick="makeClaim()">Claim</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let connected = false;
+        let username = 'player';
+        let roomId = '123';
+        
+        const gameArea = document.getElementById('gameArea');
+        const statusElement = document.getElementById('connectionStatus');
+        const messageInput = document.getElementById('messageInput');
+        const claimInput = document.getElementById('claimInput');
+        
+        // Parse URL parameters
+        function getUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            username = urlParams.get('username') || 'player';
+            roomId = urlParams.get('roomId') || '123';
+            
+            // Update UI with current username and room
+            document.title = `Liars Bar - Russian Roulette (${username} in room ${roomId})`;
+        }
+        
+        function addMessage(message, className = '') {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (className) {
+                div.className = className;
+            }
+            gameArea.appendChild(div);
+            gameArea.scrollTop = gameArea.scrollHeight;
+        }
+        
+        function updateStatus(message, className = '') {
+            statusElement.textContent = message;
+            statusElement.className = `status ${className}`;
+        }
+        
+        function connectToServer() {
+            try {
+                const wsUrl = `ws://localhost:8080/ws/room?roomId=${roomId}&username=${username}`;
+                ws = new WebSocket(wsUrl);
+                
+                // Update connection info
+                document.getElementById('connectionInfo').textContent = `Connecting to room ${roomId} as ${username}...`;
+                
+                ws.onopen = function() {
+                    connected = true;
+                    updateStatus(`Connected to room ${roomId}`, 'success');
+                    addMessage(`Connected to Russian Roulette server as ${username}!`, 'success');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleGameMessage(data);
+                    } catch (e) {
+                        addMessage('Server: ' + event.data);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    connected = false;
+                    updateStatus('Disconnected from server', 'error');
+                    addMessage('Connection closed. Attempting to reconnect...', 'error');
+                    setTimeout(connectToServer, 3000);
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('Connection error', 'error');
+                    addMessage('Connection error occurred', 'error');
+                };
+                
+            } catch (error) {
+                updateStatus('Failed to connect', 'error');
+                addMessage('Failed to connect to server: ' + error.message, 'error');
+                setTimeout(connectToServer, 3000);
+            }
+        }
+        
+        function handleGameMessage(data) {
+            if (data.type) {
+                switch (data.type) {
+                    case 'gameState':
+                        addMessage('Game State Updated');
+                        if (data.players) {
+                            addMessage(`Players: ${data.players.join(', ')}`);
+                        }
+                        if (data.currentPlayer) {
+                            addMessage(`Current Player: ${data.currentPlayer}`);
+                        }
+                        break;
+                    case 'playerJoined':
+                        addMessage(`${data.username} joined the game`, 'success');
+                        break;
+                    case 'playerLeft':
+                        addMessage(`${data.username} left the game`, 'error');
+                        break;
+                    case 'cardDrawn':
+                        addMessage(`${data.player} drew a card`);
+                        break;
+                    case 'cardPlayed':
+                        addMessage(`${data.player} played: ${data.card}`);
+                        break;
+                    case 'triggerPulled':
+                        if (data.bullet) {
+                            addMessage(`💥 ${data.player} got the bullet! They're out!`, 'error');
+                        } else {
+                            addMessage(`✅ ${data.player} survived the trigger pull`, 'success');
+                        }
+                        break;
+                    case 'claim':
+                        addMessage(`${data.player} claims: ${data.quantity} ${data.card}s`);
+                        break;
+                    case 'liarCall':
+                        addMessage(`${data.player} calls liar!`);
+                        break;
+                    case 'roundEnd':
+                        addMessage(`Round ended. ${data.winner} wins!`, 'success');
+                        break;
+                    case 'error':
+                        addMessage(`Error: ${data.message}`, 'error');
+                        break;
+                    default:
+                        addMessage(`Server: ${JSON.stringify(data)}`);
+                }
+            } else {
+                addMessage(`Server: ${JSON.stringify(data)}`);
+            }
+        }
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && connected) {
+                ws.send(JSON.stringify({
+                    type: 'chat',
+                    message: message
+                }));
+                addMessage(`You: ${message}`);
+                messageInput.value = '';
+            }
+        }
+        
+        function makeClaim() {
+            const claim = claimInput.value.trim();
+            if (claim && connected) {
+                const parts = claim.split(' ');
+                if (parts.length >= 2) {
+                    const quantity = parseInt(parts[0]);
+                    const card = parts[1];
+                    
+                    ws.send(JSON.stringify({
+                        type: 'claim',
+                        quantity: quantity,
+                        card: card
+                    }));
+                    addMessage(`You claim: ${quantity} ${card}s`);
+                    claimInput.value = '';
+                } else {
+                    addMessage('Invalid claim format. Use: "2 Kings" or "3 Aces"', 'error');
+                }
+            }
+        }
+        
+        function drawCard() {
+            if (connected) {
+                ws.send(JSON.stringify({ type: 'drawCard' }));
+                addMessage('Drawing a card...');
+            }
+        }
+        
+        function playCard() {
+            if (connected) {
+                ws.send(JSON.stringify({ type: 'playCard' }));
+                addMessage('Playing a card...');
+            }
+        }
+        
+        function pullTrigger() {
+            if (connected) {
+                ws.send(JSON.stringify({ type: 'pullTrigger' }));
+                addMessage('💀 Pulling the trigger...');
+            }
+        }
+        
+        function callLiar() {
+            if (connected) {
+                ws.send(JSON.stringify({ type: 'callLiar' }));
+                addMessage('Calling liar!');
+            }
+        }
+        
+        function passTurn() {
+            if (connected) {
+                ws.send(JSON.stringify({ type: 'pass' }));
+                addMessage('Passing turn...');
+            }
+        }
+        
+        function showHand() {
+            if (connected) {
+                ws.send(JSON.stringify({ type: 'showHand' }));
+                addMessage('Requesting cards...');
+            }
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function handleClaimKeyPress(event) {
+            if (event.key === 'Enter') {
+                makeClaim();
+            }
+        }
+        
+        // Initialize on page load
+        getUrlParams();
+        connectToServer();
+    </script>
+</body>
+</html>
