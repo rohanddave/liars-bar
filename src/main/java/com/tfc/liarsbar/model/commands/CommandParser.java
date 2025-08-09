@@ -78,10 +78,10 @@ public class CommandParser {
             }
             
             // Try to match shoot command
-            Matcher shootMatcher = SHOOT_PATTERN.matcher(normalizedInput);
-            if (shootMatcher.matches()) {
-                return new CommandRequest("shoot", input);
-            }
+//            Matcher shootMatcher = SHOOT_PATTERN.matcher(normalizedInput);
+//            if (shootMatcher.matches()) {
+//                return new CommandRequest("shoot", input);
+//            }
 
             // Try simple word-based parsing for aliases
             String[] words = normalizedInput.split("\\s+");
