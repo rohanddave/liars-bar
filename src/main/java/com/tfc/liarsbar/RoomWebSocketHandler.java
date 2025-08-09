@@ -29,6 +29,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
 
   @Override
   public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+    System.out.println("received: " + message.toString());
     roomService.broadcastMessage(session, message.getPayload());
   }
 

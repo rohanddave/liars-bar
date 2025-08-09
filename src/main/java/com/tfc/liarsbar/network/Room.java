@@ -1,5 +1,6 @@
 package com.tfc.liarsbar.network;
 
+import com.tfc.liarsbar.model.events.GameEventPublisher;
 import com.tfc.liarsbar.model.exceptions.RoomFullException;
 
 import java.util.List;
@@ -31,4 +32,6 @@ public interface Room {
    * @return a copy of the array list of Members in the Room.
    */
   Set<User> getUsers();
+
+  GameEventPublisher getGameEventPublisher();
 }

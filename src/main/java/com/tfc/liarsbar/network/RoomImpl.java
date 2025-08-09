@@ -58,6 +58,11 @@ public class RoomImpl implements Room {
   }
 
   @Override
+  public GameEventPublisher getGameEventPublisher() {
+    return this.eventPublisher;
+  }
+
+  @Override
   public void removeUser(User user) {
     this.users.remove(user);
   }
