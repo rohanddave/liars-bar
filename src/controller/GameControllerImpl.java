@@ -2,6 +2,8 @@ package controller;
 
 import model.game.*;
 import model.exceptions.*;
+import view.RevolverView;
+import util.InputHandler;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -17,6 +19,7 @@ public class GameControllerImpl implements GameController {
     private boolean gameInitialized;
     private boolean gameStarted;
     private Rank currentRank;
+    private RevolverView revolverView;
     
     public GameControllerImpl() {
         this.allPlayers = new ArrayList<>();
@@ -24,6 +27,7 @@ public class GameControllerImpl implements GameController {
         this.gameInitialized = false;
         this.gameStarted = false;
         this.currentRank = Rank.KING; // Start with Kings
+        this.revolverView = new RevolverView(new InputHandler());
     }
     
     @Override
@@ -129,6 +133,42 @@ public class GameControllerImpl implements GameController {
         }
     }
     
+    /**
+     * Handles claim input using the ClaimInputView system.
+     * This method integrates the terminal-based claim input with the game controller.
+     * @param player The player making the claim
+     * @param claimInputView The claim input view to use for getting user input
+     * @return true if claim was successfully processed, false if cancelled
+     */
+    public boolean handleClaimWithInput(Player player, view.ClaimInputView claimInputView) {
+        if (!gameStarted) {
+            throw new IllegalStateException("Game must be started first");
+        }
+        
+        Player currentPlayer = getCurrentPlayer();
+        if (!player.equals(currentPlayer)) {
+            throw new IllegalArgumentException("It's not this player's turn");
+        }
+        
+        try {
+            // Get claim input from the player
+            view.ClaimInputView.ClaimInput claimInput = claimInputView.getClaimInput(player, this.currentRank);
+            
+            if (claimInput == null) {
+                return false; // Player cancelled the claim
+            }
+            
+            // Process the claim using the existing handleClaim method
+            handleClaim(player, claimInput.getClaimCount(), claimInput.getCardIndices());
+            
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("Error processing claim: " + e.getMessage());
+            return false;
+        }
+    }
+    
     @Override
     public void handleChallenge(Player player) {
         Claim lastClaim = this.game.getLastClaim();
@@ -145,15 +185,156 @@ public class GameControllerImpl implements GameController {
         }
     }
     
+    /**
+     * Handles challenge input using the ChallengeView system.
+     * This method integrates the terminal-based challenge system with the game controller.
+     * @param challenger The player considering the challenge
+     * @param challengeView The challenge view to use for user interaction
+     * @return ChallengeResult containing the outcome, or null if no challenge was made
+     */
+    public view.ChallengeView.ChallengeResult handleChallengeWithInput(Player challenger, view.ChallengeView challengeView) {
+        if (!gameStarted) {
+            throw new IllegalStateException("Game must be started first");
+        }
+        
+        Claim lastClaim = this.game.getLastClaim();
+        if (lastClaim == null) {
+            throw new IllegalStateException("No claim exists to challenge");
+        }
+        
+        try {
+            // Ask the player if they want to challenge
+            boolean wantsToChallenge = challengeView.promptForChallenge(challenger, lastClaim, this.currentRank);
+            
+            if (!wantsToChallenge) {
+                return null; // Player chose not to challenge
+            }
+            
+            // Display challenge action
+            challengeView.displayChallengeAction(challenger, lastClaim);
+            
+            // Process the challenge through the game model
+            challengeView.displayChallengeProcessing("Revealing cards and determining outcome...");
+            
+            // Get the actual cards that were played (this would need to be implemented in the Game interface)
+            // For now, we'll simulate this by getting cards from the claimed player's recent play
+            List<Card> actualCards = getLastPlayedCards(lastClaim.getPlayer());
+            
+            if (actualCards == null || actualCards.isEmpty()) {
+                challengeView.displayChallengeError("Could not retrieve played cards");
+                return null;
+            }
+            
+            // Display the challenge reveal and get the result
+            view.ChallengeView.ChallengeResult result = challengeView.displayChallengeReveal(
+                lastClaim, actualCards, this.currentRank);
+            
+            // Process the challenge through the game model
+            this.game.challengeClaim(challenger);
+            
+            return result;
+            
+        } catch (NoActiveClaimException e) {
+            challengeView.displayChallengeError("No active claim to challenge");
+            return null;
+        } catch (NotPlayerTurnException e) {
+            challengeView.displayChallengeError("It's not your turn to challenge");
+            return null;
+        } catch (Exception e) {
+            challengeView.displayChallengeError("Error processing challenge: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Gets the cards that were last played by a player.
+     * This is a placeholder method - in a real implementation, this would be tracked by the Game model.
+     * @param player The player whose last played cards to retrieve
+     * @return List of cards that were last played, or null if not available
+     */
+    private List<Card> getLastPlayedCards(Player player) {
+        // This is a placeholder implementation
+        // In a real game, this information would be stored when the claim was made
+        // For now, we'll return some sample cards for testing
+        List<Card> sampleCards = new ArrayList<>();
+        
+        // Try to get cards from the player's hand as a simulation
+        Hand playerHand = player.getHand();
+        if (playerHand != null) {
+            try {
+                // Get first few cards as a simulation of what was played
+                for (int i = 0; i < Math.min(2, getHandSize(playerHand)); i++) {
+                    sampleCards.add(playerHand.getAt(i));
+                }
+            } catch (IndexOutOfBoundsException e) {
+                // Handle empty hand
+            }
+        }
+        
+        return sampleCards.isEmpty() ? null : sampleCards;
+    }
+    
+    /**
+     * Helper method to get hand size.
+     * @param hand The hand to measure
+     * @return Number of cards in hand
+     */
+    private int getHandSize(Hand hand) {
+        if (hand == null) return 0;
+        
+        int count = 0;
+        try {
+            while (true) {
+                hand.getAt(count);
+                count++;
+            }
+        } catch (IndexOutOfBoundsException e) {
+            // Expected when we reach the end
+        }
+        return count;
+    }
+    
     @Override
     public boolean handleRevolverSpin(Player player) {
         if (!player.isAlive()) {
             throw new IllegalArgumentException("Player is already eliminated");
         }
         
+        // Get the player's revolver for display purposes
+        Revolver revolver = null;
+        if (game instanceof GameImpl) {
+            revolver = ((GameImpl) game).getPlayerRevolver(player);
+        }
+        
+        // Display revolver spinning interface
+        revolverView.displayRevolverSpin(player);
+        
+        // Show spinning animation if we have revolver info
+        if (revolver instanceof RevolverImpl) {
+            RevolverImpl revolverImpl = (RevolverImpl) revolver;
+            revolverView.displaySpinningAnimation(revolverImpl.getBulletChamber());
+        }
+        
+        // Display trigger pull interface
+        revolverView.displayTriggerPull(player);
+        
+        // Actually spin the revolver
         boolean playerEliminated = this.game.spinRevolver(player);
         
+        // Get chamber position for display
+        int chamberPosition = this.game.getRevolverChamberPosition(player);
+        if (chamberPosition == -1 && revolver instanceof RevolverImpl) {
+            chamberPosition = ((RevolverImpl) revolver).getCurrentChamber();
+        }
+        
+        // Display the outcome
+        revolverView.displayRevolverOutcome(player, playerEliminated, chamberPosition);
+        
         if (playerEliminated) {
+            // Display elimination status
+            int remainingPlayers = (int) allPlayers.stream().filter(Player::isAlive).count();
+            revolverView.displayPlayerElimination(player, remainingPlayers);
+            
             // Player was eliminated, check if game should end
             checkGameEnd();
         }

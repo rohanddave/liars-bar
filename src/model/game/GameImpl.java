@@ -1,7 +1,9 @@
 package model.game;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import model.exceptions.GameFullException;
 import model.exceptions.NoSuchCardException;
@@ -10,6 +12,7 @@ public class GameImpl implements Game {
   private final List<Player> players;
   private final Deck deck;
   private final Rank rank;
+  private final Map<Player, Revolver> playerRevolvers;
 
   private int currentPlayingPlayerIndex = 0;
 
@@ -17,9 +20,15 @@ public class GameImpl implements Game {
     this.deck = builder.deck != null ? builder.deck : new DeckImpl();
     this.players = new ArrayList<>(builder.maxPlayers);
     this.rank = builder.rank;
+    this.playerRevolvers = new HashMap<>();
 
     // Add initial players
     this.players.addAll(builder.players);
+    
+    // Initialize revolvers for each player
+    for (Player player : this.players) {
+      this.playerRevolvers.put(player, new RevolverImpl());
+    }
   }
 
   public static class Builder {
@@ -78,7 +87,24 @@ public class GameImpl implements Game {
 
   @Override
   public boolean spinRevolver(Player player) {
-    return false;
+    if (!player.isAlive()) {
+      throw new IllegalArgumentException("Player " + player.getId() + " is already eliminated");
+    }
+    
+    Revolver revolver = playerRevolvers.get(player);
+    if (revolver == null) {
+      throw new IllegalArgumentException("No revolver found for player " + player.getId());
+    }
+    
+    // Player shoots their revolver
+    boolean eliminated = revolver.shoot();
+    
+    if (eliminated) {
+      // Player is eliminated - this will be handled by the Player's shoot() method
+      player.shoot();
+    }
+    
+    return eliminated;
   }
 
   @Override
@@ -118,6 +144,15 @@ public class GameImpl implements Game {
 
   @Override
   public int getRevolverChamberPosition(Player player) {
+    Revolver revolver = playerRevolvers.get(player);
+    if (revolver == null || !player.isAlive()) {
+      return -1;
+    }
+    
+    if (revolver instanceof RevolverImpl) {
+      return ((RevolverImpl) revolver).getCurrentChamber();
+    }
+    
     return 0;
   }
 
@@ -139,5 +174,14 @@ public class GameImpl implements Game {
   @Override
   public Rank getRank() {
     return this.rank;
+  }
+  
+  /**
+   * Gets the revolver for a specific player (for testing and display purposes).
+   * @param player The player whose revolver to get
+   * @return The player's revolver, or null if not found
+   */
+  public Revolver getPlayerRevolver(Player player) {
+    return playerRevolvers.get(player);
   }
 }

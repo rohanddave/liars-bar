@@ -92,6 +92,7 @@ public class ActionMenuView {
         }
         
         // Let the player select cards
+        int cardCount = promptForClaimCount();
         for (int i = 0; i < cardCount; i++) {
             boolean validSelection = false;
             while (!validSelection) {
