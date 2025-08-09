@@ -64,31 +64,36 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
         roomId -> new GameCommandProcessor(room.getGameEventPublisher()));
       
       // Process the command
-      // Note: For now, we'll create a mock game and player since Game integration may not be complete
-      // This should be replaced with actual game instance retrieval
       if (processor.isValidCommand(payload)) {
-        // TODO: Replace with actual Game and Player instances from room/game state
-         ActionResult result = processor.processCommand(payload, room.getGame(), roomService.getUserBySession(session));
+        // Execute the command and get the result
+        ActionResult result = processor.processCommand(payload, room.getGame(), roomService.getUserBySession(session));
         
-        // For now, just acknowledge the valid command
-        String response = "{\"status\":\"success\",\"message\":\"Command '" + payload + "' recognized and queued for processing\"}";
-        session.sendMessage(new TextMessage(response));
-        
-        // Broadcast to room that user sent a command
-        String broadcast = "{\"type\":\"player_action\",\"player\":\"" + user.getUserName() + "\",\"action\":\"" + payload + "\"}";
-        broadcastToRoom(room, broadcast, session);
+        // Send response based on actual execution result
+        String response;
+        if (result.isSuccess()) {
+          response = "{\"status\":\"success\",\"message\":\"" + result.getMessage().replace("\"", "\\\"") + "\"}";
+          
+          // Broadcast to room that user sent a command
+          String broadcast = "{\"type\":\"player_action\",\"player\":\"" + user.getUserName() + "\",\"action\":\"" + payload + "\"}";
+          broadcastToRoom(room, broadcast, session);
 
-        for (User u : room.getUsers()) {
-          try {
-            WebSocketSession userSession = u.getSession();
-            if (userSession != null && userSession.isOpen()) {
-              String latestGameStateForPlayer = room.getGame().getGameState(u);
-              userSession.sendMessage(new TextMessage(latestGameStateForPlayer));
+          // Send updated game state to all players
+          for (User u : room.getUsers()) {
+            try {
+              WebSocketSession userSession = u.getSession();
+              if (userSession != null && userSession.isOpen()) {
+                String latestGameStateForPlayer = room.getGame().getGameState(u);
+                userSession.sendMessage(new TextMessage(latestGameStateForPlayer));
+              }
+            } catch (Exception e) {
+              logger.warning("Failed to send game state to user " + u.getUserName() + ": " + e.getMessage());
             }
-          } catch (Exception e) {
-            logger.warning("Failed to send message to user " + user.getUserName() + ": " + e.getMessage());
           }
+        } else {
+          response = "{\"status\":\"error\",\"message\":\"" + result.getMessage().replace("\"", "\\\"") + "\"}";
         }
+        
+        session.sendMessage(new TextMessage(response));
       } else {
         // Invalid command - send help
         String help = processor.getCommandHelp();
