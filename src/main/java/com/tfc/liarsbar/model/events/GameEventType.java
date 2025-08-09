@@ -16,5 +16,5 @@ public enum GameEventType {
   PLAYER_ELIMINATED,
   TURN_CHANGED,
   ROOM_JOINED,
-  ROOM_LEFT
+  ROOM_LEFT,
 }

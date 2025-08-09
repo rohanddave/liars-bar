@@ -190,13 +190,14 @@
             <button class="quick-command" onclick="sendCommand('claim 1 0')">Claim 1 (0)</button>
             <button class="quick-command" onclick="sendCommand('claim 3 0,1,2')">Claim 3 (0,1,2)</button>
             <button class="quick-command" onclick="sendCommand('challenge')">Challenge</button>
+            <button class="quick-command" onclick="sendCommand('show')">Show</button>
 <!--            <button class="quick-command" onclick="sendCommand('shoot')">Shoot</button>-->
             <button class="quick-command" onclick="showHelp()">Help</button>
         </div>
         
         <div class="input-area">
             <div class="command-input">
-                <input type="text" id="commandInput" placeholder="Enter command: claim, challenge, shoot..." 
+                <input type="text" id="commandInput" placeholder="Enter command: claim, challenge, show, shoot..." 
                        oninput="validateCommand(this.value)" 
                        onkeydown="handleCommandKeyPress(event)"
                        autocomplete="off">
@@ -205,8 +206,8 @@
             <button onclick="sendCommand()" id="sendButton" disabled>Send</button>
         </div>
         <div class="command-help" id="commandHelp">
-            Valid commands: <strong>start</strong>, <strong>claim [count] [indices]</strong>, <strong>challenge</strong><br>
-            Aliases: <strong>ch</strong>, <strong>s</strong> | Examples: "start", "claim 2 0,1", "challenge"
+            Valid commands: <strong>start</strong>, <strong>claim [count] [indices]</strong>, <strong>challenge</strong>, <strong>show</strong><br>
+            Aliases: <strong>ch</strong>, <strong>s</strong> | Examples: "start", "claim 2 0,1", "challenge", "show"
         </div>
     </div>
 
@@ -226,6 +227,7 @@
             'challenge': { pattern: /^(challenge|call)$/i, examples: ['challenge', 'call'] },
             'shoot': { pattern: /^(shoot|fire|pull)$/i, examples: ['shoot', 'fire', 'pull'] },
             'start': { pattern: /^(start|begin|init)$/i, examples: ['start', 'begin', 'init'] },
+            'show': { pattern: /^(show|display|info)$/i, examples: ['show', 'display', 'info'] },
             'ch': { pattern: /^ch$/i, examples: ['ch'] },
             's': { pattern: /^s$/i, examples: ['s'] }
         };
@@ -454,9 +456,10 @@
             addMessage('  - count: number of cards to claim');
             addMessage('  - indices: comma-separated card positions to discard');
             addMessage('• challenge - Challenge the last claim');
+            addMessage('• show - Display current game state and info');
             addMessage('• shoot - Pull the trigger');
             addMessage('• Aliases: ch (challenge), s (shoot)');
-            addMessage('• Examples: "start", "claim 2 0,1", "claim 1 3", "challenge"');
+            addMessage('• Examples: "start", "claim 2 0,1", "claim 1 3", "challenge", "show"');
             addMessage('==================');
         }
         

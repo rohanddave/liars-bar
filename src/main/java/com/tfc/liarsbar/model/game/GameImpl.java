@@ -195,8 +195,111 @@ public class GameImpl implements Game {
   }
 
   @Override
-  public GameState getGameState() {
-    return null;
+  public String getGameState(Player player) {
+    StringBuilder sb = new StringBuilder();
+    
+    // Game header
+    sb.append("=== LIARS BAR - GAME STATE ===\n");
+    
+    // Game status
+    if (!gameStarted) {
+      sb.append("Status: WAITING TO START\n");
+    } else if (isGameOver()) {
+      sb.append("Status: GAME OVER\n");
+      try {
+        Player winner = getWinner();
+        sb.append("Winner: ").append(winner.getName()).append("\n");
+      } catch (Exception e) {
+        sb.append("Winner: No winner (all eliminated)\n");
+      }
+    } else {
+      sb.append("Status: GAME IN PROGRESS\n");
+    }
+    
+    // Current round and rank
+    if (currentRound != null) {
+      sb.append("Current Round: ").append(getCurrentRoundNumber() + 1).append("\n");
+      sb.append("Current Rank: ").append(getRank()).append("\n");
+      
+      Player currentPlayer = getCurrentPlayer();
+      if (currentPlayer != null) {
+        sb.append("Current Turn: ").append(currentPlayer.getName()).append("\n");
+      }
+    }
+    
+    // Last claim info
+    Claim lastClaim = getLastClaim();
+    if (lastClaim != null) {
+      sb.append("Last Claim: ").append(lastClaim.getPlayer().getName())
+        .append(" claimed ").append(lastClaim.getCount())
+        .append(" ").append(lastClaim.getRank())
+        .append(lastClaim.getCount() > 1 ? "s" : "")
+        .append(lastClaim.isSettled() ? " (SETTLED)" : " (CHALLENGEABLE)")
+        .append("\n");
+    }
+    
+    sb.append("\n=== PLAYERS ===\n");
+    
+    // Player information
+    for (Player p : players) {
+      sb.append("Player: ").append(p.getName());
+      
+      // Alive/Dead status
+      if (p.isAlive()) {
+        sb.append(" [ALIVE]");
+      } else {
+        sb.append(" [ELIMINATED]");
+      }
+      
+      // Card count (show actual hand only for requesting player)
+      if (p.equals(player) && p.getHand() != null) {
+        sb.append("\n  Your Hand (").append(p.getHand().getSize()).append(" cards): ");
+        
+        // Show actual cards
+        for (int i = 0; i < p.getHand().getSize(); i++) {
+          if (i > 0) sb.append(", ");
+          try {
+            Card card = p.getHand().getAt(i);
+            sb.append(card.getRank());
+          } catch (Exception e) {
+            sb.append("?");
+          }
+        }
+        sb.append("\n");
+      } else if (p.getHand() != null) {
+        sb.append("\n  Cards: ").append(p.getHand().getSize()).append(" remaining\n");
+      } else {
+        sb.append("\n  Cards: 0 remaining\n");
+      }
+      
+      // Revolver position
+      if (p.getRevolver() != null) {
+        sb.append("  Revolver: Chamber ").append(p.getRevolver().getCurrentIndex() + 1).append("/6\n");
+      } else {
+        sb.append("  Revolver: Not initialized\n");
+      }
+      
+      sb.append("\n");
+    }
+    
+    // Active vs Eliminated summary
+    sb.append("=== SUMMARY ===\n");
+    sb.append("Active Players: ").append(getActivePlayers().size()).append("\n");
+    sb.append("Eliminated Players: ").append(getEliminatedPlayers().size()).append("\n");
+    
+    if (!getEliminatedPlayers().isEmpty()) {
+      sb.append("Eliminated: ");
+      List<Player> eliminated = getEliminatedPlayers();
+      for (int i = 0; i < eliminated.size(); i++) {
+        if (i > 0) sb.append(", ");
+        sb.append(eliminated.get(i).getName());
+      }
+      sb.append("\n");
+    }
+    
+    sb.append("===============================");
+    
+    return sb.toString();
   }
 
   @Override

@@ -24,6 +24,10 @@ public class CommandParser {
     private static final Pattern SHOOT_PATTERN = Pattern.compile(
         "^(?:shoot|fire|pull)$", Pattern.CASE_INSENSITIVE
     );
+
+    private static final Pattern SHOW_PATTERN = Pattern.compile(
+            "^(?:show)$", Pattern.CASE_INSENSITIVE
+    );
     
     private static final Pattern START_PATTERN = Pattern.compile(
         "^(?:start|begin|init)$", Pattern.CASE_INSENSITIVE
@@ -77,11 +81,11 @@ public class CommandParser {
                 return new CommandRequest("challenge", input);
             }
             
-            // Try to match shoot command
-//            Matcher shootMatcher = SHOOT_PATTERN.matcher(normalizedInput);
-//            if (shootMatcher.matches()) {
-//                return new CommandRequest("shoot", input);
-//            }
+            // Try to match show command
+            Matcher shootMatcher = SHOW_PATTERN.matcher(normalizedInput);
+            if (shootMatcher.matches()) {
+                return new CommandRequest("show", input);
+            }
 
             // Try simple word-based parsing for aliases
             String[] words = normalizedInput.split("\\s+");

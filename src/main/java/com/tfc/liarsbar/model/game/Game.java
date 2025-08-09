@@ -55,9 +55,10 @@ public interface Game {
 
   /**
    * Gets the current game state
+   * @param player The player requesting the game state (to show their hand while hiding others')
    * @return Current state of the game
    */
-  GameState getGameState();
+  String getGameState(Player player);
 
   /**
    * Gets the last played card claim

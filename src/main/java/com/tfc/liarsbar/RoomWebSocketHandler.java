@@ -77,7 +77,18 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
         // Broadcast to room that user sent a command
         String broadcast = "{\"type\":\"player_action\",\"player\":\"" + user.getUserName() + "\",\"action\":\"" + payload + "\"}";
         broadcastToRoom(room, broadcast, session);
-        
+
+        for (User u : room.getUsers()) {
+          try {
+            WebSocketSession userSession = u.getSession();
+            if (userSession != null && userSession.isOpen()) {
+              String latestGameStateForPlayer = room.getGame().getGameState(u);
+              userSession.sendMessage(new TextMessage(latestGameStateForPlayer));
+            }
+          } catch (Exception e) {
+            logger.warning("Failed to send message to user " + user.getUserName() + ": " + e.getMessage());
+          }
+        }
       } else {
         // Invalid command - send help
         String help = processor.getCommandHelp();
