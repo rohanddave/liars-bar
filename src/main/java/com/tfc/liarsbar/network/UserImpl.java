@@ -39,6 +39,7 @@ public class UserImpl implements User {
   public UserImpl(String username, WebSocketSession session) {
     this.username = username;
     this.id = UUID.randomUUID().toString();
+    this.session = session;
     this.isAlive = true;
   }
 
