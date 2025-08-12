@@ -137,4 +137,10 @@ public interface Game {
    * @return true if game has been started, false otherwise
    */
   boolean isGameStarted();
+
+  /**
+   * Removes a player completely from the game
+   * @param player The player to remove
+   */
+  void removePlayer(Player player);
 }

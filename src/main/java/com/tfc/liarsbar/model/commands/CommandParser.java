@@ -26,11 +26,15 @@ public class CommandParser {
     );
 
     private static final Pattern SHOW_PATTERN = Pattern.compile(
-            "^(?:show)$", Pattern.CASE_INSENSITIVE
+            "^(?:show|hand)$", Pattern.CASE_INSENSITIVE
     );
     
     private static final Pattern START_PATTERN = Pattern.compile(
         "^(?:start|begin|init)$", Pattern.CASE_INSENSITIVE
+    );
+
+    private static final Pattern QUIT_PATTERN = Pattern.compile(
+            "^(?:quit|quit)$", Pattern.CASE_INSENSITIVE
     );
     
     // Command aliases mapping
@@ -46,6 +50,8 @@ public class CommandParser {
         COMMAND_ALIASES.put("play", "claim");
         COMMAND_ALIASES.put("begin", "start");
         COMMAND_ALIASES.put("init", "start");
+        COMMAND_ALIASES.put("show", "hand");
+        COMMAND_ALIASES.put("quit", "quit");
     }
     
     /**
@@ -85,6 +91,11 @@ public class CommandParser {
             Matcher shootMatcher = SHOW_PATTERN.matcher(normalizedInput);
             if (shootMatcher.matches()) {
                 return new CommandRequest("show", input);
+            }
+
+            Matcher quitMatcher = QUIT_PATTERN.matcher(normalizedInput);
+            if (quitMatcher.matches()) {
+                return new CommandRequest("quit", input);
             }
 
             // Try simple word-based parsing for aliases

@@ -12,15 +12,11 @@ public class ChallengeAction implements GameAction {
   @Override
   public ActionResult execute(Game game, Player player) {
     try {
-      System.out.println("⚔️ Challenging the last claim...");
+      System.out.println("Challenging the last claim...");
       Player loser = game.challengeClaim(player);
-      boolean wasEliminated = loser.shoot();
       
       // Mark the claim as settled after the challenge is resolved
       game.settleLastClaim();
-      
-      // Always move to the next person's turn after a challenge
-      game.moveToNextMove();
       
       return ActionResult.success("Challenge processed successfully", loser);
       

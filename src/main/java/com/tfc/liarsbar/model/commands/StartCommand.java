@@ -55,7 +55,7 @@ public class StartCommand extends AbstractGameCommand {
     @Override
     protected void postExecute(Game game, Player player, ActionResult result) {
         if (result.isSuccess()) {
-            System.out.println("🎮 Game started by " + player.getName() + 
+            System.out.println("Game started by " + player.getName() + 
                 " with " + game.getActivePlayers().size() + " players");
         }
     }

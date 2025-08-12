@@ -72,6 +72,7 @@ public class ActionCommandFactory {
             case "shoot" -> new ShootCommand(request);
             case "start" -> new StartCommand(request);
             case "show" -> new ShowHandCommand(request);
+            case "quit" -> new QuitCommand(request);
             default -> {
                 logger.warning("Unknown command type: " + commandName);
                 yield null;

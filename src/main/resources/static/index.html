@@ -24,6 +24,132 @@
             overflow-y: auto;
             background-color: #1a0000;
         }
+        
+        /* Game Table Styles */
+        .game-table {
+            display: none;
+            background-color: #0a0a0a;
+            border: 2px solid #ff4444;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .table-active {
+            display: block;
+        }
+        
+        .players-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .player-card {
+            background-color: #1a0000;
+            border: 1px solid #666;
+            border-radius: 5px;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .player-card.current-turn {
+            border-color: #ffff00;
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.3);
+        }
+        
+        .player-card.eliminated {
+            border-color: #800000;
+            opacity: 0.6;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            color: #ff4444;
+            margin-bottom: 8px;
+        }
+        
+        .player-status {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .player-cards {
+            color: #ffff00;
+            font-size: 11px;
+        }
+        
+        .game-state {
+            background-color: #2a0000;
+            border: 1px solid #ff4444;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        .round-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .current-claim {
+            background-color: #330000;
+            padding: 10px;
+            border-left: 3px solid #ff4444;
+            margin-top: 10px;
+        }
+        
+        /* Revolver View Styles */
+        .revolver-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+        }
+        
+        .revolver-view.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .revolver-container {
+            text-align: center;
+            color: #ff4444;
+        }
+        
+        .revolver-ascii {
+            font-size: 20px;
+            line-height: 1.2;
+            margin: 20px 0;
+            color: #ffff00;
+        }
+        
+        .revolver-message {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .chamber-display {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        
+        .bullet {
+            color: #ff0000;
+        }
+        
+        .empty {
+            color: #666;
+        }
         .input-area {
             display: flex;
             gap: 10px;
@@ -182,10 +308,43 @@
             <button id="disconnectButton" class="connection-button disconnect" onclick="manualDisconnect()" disabled>Disconnect</button>
         </div>
         
+        <!-- Game Table View -->
+        <div class="game-table" id="gameTable">
+            <div class="game-state">
+                <div class="round-info">
+                    <div>Round: <span id="currentRound">1</span> | Rank: <span id="currentRank">Ace</span></div>
+                    <div>Players: <span id="playerCount">0</span></div>
+                </div>
+                <div id="currentClaim" class="current-claim" style="display: none;">
+                    Last Claim: <span id="claimText">None</span>
+                </div>
+            </div>
+            
+            <div class="players-container" id="playersContainer">
+                <!-- Players will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Message Log Area -->
         <div class="game-area" id="gameArea">
-            <div>Welcome to Russian Roulette!</div>
-            <div>Loading your gun... one chamber has a bullet.</div>
-            <div id="connectionInfo">Initializing...</div>
+            <div>Welcome to Liars Bar</div>
+            <div id="connectionInfo">Ready to connect...</div>
+        </div>
+        
+        <!-- Revolver View Overlay -->
+        <div class="revolver-view" id="revolverView">
+            <div class="revolver-container">
+                <div class="revolver-message" id="revolverMessage">Spinning the chamber...</div>
+                <div class="revolver-ascii">
+                    <pre>      .-.   .-.   .-.   .-.   .-.   .-.  
+     (   ) (   ) (   ) (   ) (   ) (   ) 
+      '-'   '-'   '-'   '-'   '-'   '-'  </pre>
+                </div>
+                <div class="chamber-display" id="chamberDisplay">
+                    Chambers: <span class="empty">○</span> <span class="empty">○</span> <span class="bullet">●</span> <span class="empty">○</span> <span class="empty">○</span> <span class="empty">○</span>
+                </div>
+                <div id="revolverResult" style="margin-top: 20px; font-size: 18px;"></div>
+            </div>
         </div>
         
         <div class="quick-commands">
@@ -223,6 +382,16 @@
         let serverUrl = 'localhost:8080';
         let selectedSuggestion = -1;
         
+        // Game state variables
+        let gameState = {
+            players: {},
+            currentPlayer: null,
+            currentRound: 1,
+            currentRank: 'Ace',
+            lastClaim: null,
+            gameStarted: false
+        };
+        
         const gameArea = document.getElementById('gameArea');
         const statusElement = document.getElementById('connectionStatus');
         
@@ -253,7 +422,16 @@
         
         function addMessage(message, className = '') {
             const div = document.createElement('div');
-            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            // Check if this is ASCII art (contains box drawing characters)
+            if (message.includes('╔') || message.includes('║') || message.includes('═')) {
+                // For ASCII art, use innerHTML with <pre> to preserve formatting
+                div.innerHTML = `<pre style="margin: 0; font-family: monospace; font-size: 12px;">[${new Date().toLocaleTimeString()}] Server:\n${message}</pre>`;
+            } else {
+                // For regular messages, use textContent as before
+                div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            }
+            
             if (className) {
                 div.className = className;
             }
@@ -278,7 +456,7 @@
                     connected = true;
                     updateConnectionUI();
                     updateStatus(`Connected to room ${roomId}`, 'success');
-                    addMessage(`Connected to Russian Roulette server as ${username}!`, 'success');
+                    addMessage(`Connected as ${username}`, 'success');
                 };
                 
                 ws.onmessage = function(event) {
@@ -287,7 +465,7 @@
                         handleGameMessage(data);
                     } catch (e) {
                         // Handle plain text responses from command processor
-                        addMessage('Server: ' + event.data);
+                        handlePlainTextMessage(event.data);
                     }
                 };
                 
@@ -311,46 +489,175 @@
             }
         }
         
+        function handlePlainTextMessage(message) {
+            // Handle plain text messages including game state
+            addMessage('Server: ' + message);
+            
+            // Parse game state from formatted text
+            if (message.includes('=== LIARS BAR - GAME STATE ===')) {
+                parseGameStateFromText(message);
+            }
+            
+            // Handle revolver-related messages
+            if (message.includes('Player survived the shot') || message.includes('Player eliminated themselves')) {
+                // Show revolver animation for shoot results
+                showRevolverView(message);
+            }
+        }
+        
+        function parseGameStateFromText(gameStateText) {
+            try {
+                // Extract game started info
+                if (gameStateText.includes('Status: GAME IN PROGRESS') && !gameState.gameStarted) {
+                    gameState.gameStarted = true;
+                    showGameTable();
+                }
+                
+                // Extract current round and rank
+                const roundMatch = gameStateText.match(/Current Round: (\d+)/);
+                if (roundMatch) {
+                    gameState.currentRound = parseInt(roundMatch[1]);
+                }
+                
+                const rankMatch = gameStateText.match(/Current Rank: (\w+)/);
+                if (rankMatch) {
+                    gameState.currentRank = rankMatch[1];
+                }
+                
+                // Extract current turn
+                const turnMatch = gameStateText.match(/Current Turn: (\w+)/);
+                if (turnMatch) {
+                    // Clear previous current player
+                    Object.values(gameState.players).forEach(p => p.isCurrentPlayer = false);
+                    const currentPlayer = turnMatch[1];
+                    gameState.currentPlayer = currentPlayer;
+                    if (!gameState.players[currentPlayer]) {
+                        gameState.players[currentPlayer] = {
+                            name: currentPlayer,
+                            cardCount: 5,
+                            isAlive: true,
+                            isCurrentPlayer: true
+                        };
+                    } else {
+                        gameState.players[currentPlayer].isCurrentPlayer = true;
+                    }
+                }
+                
+                // Extract last claim
+                const claimMatch = gameStateText.match(/Last Claim: (\w+) claimed (\d+) (\w+)/);
+                if (claimMatch) {
+                    gameState.lastClaim = {
+                        player: claimMatch[1],
+                        count: parseInt(claimMatch[2]),
+                        rank: claimMatch[3]
+                    };
+                }
+                
+                // Extract player information
+                const playerMatches = [...gameStateText.matchAll(/Player: (\w+) \[(\w+)\] (?:Your Hand.*?Cards: (\d+) remaining|Cards: (\d+) remaining)/g)];
+                playerMatches.forEach(match => {
+                    const playerName = match[1];
+                    const status = match[2];
+                    const cardCount = parseInt(match[3] || match[4]);
+                    
+                    if (!gameState.players[playerName]) {
+                        gameState.players[playerName] = {
+                            name: playerName,
+                            cardCount: cardCount,
+                            isAlive: status === 'ALIVE',
+                            isCurrentPlayer: playerName === gameState.currentPlayer
+                        };
+                    } else {
+                        gameState.players[playerName].cardCount = cardCount;
+                        gameState.players[playerName].isAlive = status === 'ALIVE';
+                    }
+                });
+                
+                // Check for game over
+                if (gameStateText.includes('Status: GAME OVER')) {
+                    gameState.gameStarted = false;
+                    hideGameTable();
+                    
+                    const winnerMatch = gameStateText.match(/Winner: (\w+)/);
+                    if (winnerMatch) {
+                        addMessage(`Game Over! Winner: ${winnerMatch[1]}`, 'success');
+                    }
+                }
+                
+                updateGameTableDisplay();
+            } catch (error) {
+                console.error('Error parsing game state:', error);
+            }
+        }
+
         function handleGameMessage(data) {
             if (data.status) {
                 // Handle command processor responses
                 if (data.status === 'success') {
-                    addMessage(`✅ ${data.message}`, 'success');
+                    addMessage(`${data.message}`, 'success');
                 } else {
-                    addMessage(`❌ ${data.message}`, 'error');
+                    addMessage(`${data.message}`, 'error');
                 }
             } else if (data.error) {
                 // Handle command errors
-                addMessage(`❌ ${data.error}`, 'error');
+                addMessage(`${data.error}`, 'error');
                 if (data.help) {
-                    addMessage(`💡 ${data.help}`, 'success');
+                    addMessage(`${data.help}`, 'success');
                 }
             } else if (data.type) {
-                // Handle other game messages
+                // Handle game events from backend
+                handleGameEvent(data);
+                
+                // Also add to message log
                 switch (data.type) {
-                    case 'player_action':
-                        addMessage(`🎮 ${data.player}: ${data.action}`);
+                    case 'GAME_STARTED':
+                        gameState.gameStarted = true;
+                        showGameTable();
                         break;
-                    case 'gameState':
-                        addMessage('Game State Updated');
-                        if (data.players) {
-                            addMessage(`Players: ${data.players.join(', ')}`);
-                        }
-                        if (data.currentPlayer) {
-                            addMessage(`Current Player: ${data.currentPlayer}`);
-                        }
+                    case 'PLAYER_INITIALIZED':
+                        // Skip individual player initialization messages
                         break;
-                    case 'playerJoined':
-                        addMessage(`${data.username} joined the game`, 'success');
+                    case 'CLAIM_MADE':
+                        addMessage(`${data.message}`);
                         break;
-                    case 'playerLeft':
-                        addMessage(`${data.username} left the game`, 'error');
+                    case 'CHALLENGE_MADE':
+                        addMessage(`${data.message}`);
                         break;
-                    case 'error':
-                        addMessage(`Error: ${data.message}`, 'error');
+                    case 'CHALLENGE_RESULT':
+                        addMessage(`${data.message}`);
+                        break;
+                    case 'PLAYER_SHOT':
+                        addMessage(`${data.message}`);
+                        showRevolverView(data.message);
+                        break;
+                    case 'PLAYER_ELIMINATED':
+                        addMessage(`${data.message}`, 'error');
+                        break;
+                    case 'TURN_CHANGED':
+                        // Skip turn change messages - shown in table
+                        break;
+                    case 'ROUND_STARTED':
+                        addMessage(`${data.message}`);
+                        break;
+                    case 'ROUND_ENDED':
+                        addMessage(`${data.message}`);
+                        break;
+                    case 'GAME_ENDED':
+                        addMessage(`${data.message}`, 'success');
+                        gameState.gameStarted = false;
+                        hideGameTable();
+                        break;
+                    case 'ROOM_JOINED':
+                        // Skip room join messages - too verbose
+                        break;
+                    case 'ROOM_LEFT':
+                        addMessage(`${data.message}`, 'error');
                         break;
                     default:
-                        addMessage(`Server: ${JSON.stringify(data)}`);
+                        // Skip undefined messages
+                        if (data.message && data.message !== 'undefined') {
+                            addMessage(`${data.message}`);
+                        }
                 }
             } else {
                 addMessage(`Server: ${JSON.stringify(data)}`);
@@ -558,6 +865,201 @@
                 usernameInput.disabled = false;
                 connectButton.textContent = 'Connect to Server';
             }
+        }
+        
+        // Game event handler
+        function handleGameEvent(event) {
+            const eventType = event.type;
+            const message = event.message;
+            
+            switch (eventType) {
+                case 'GAME_STARTED':
+                    gameState.gameStarted = true;
+                    parseGameStartMessage(message);
+                    break;
+                case 'PLAYER_INITIALIZED':
+                    parsePlayerInitMessage(message);
+                    break;
+                case 'CLAIM_MADE':
+                    parseClaimMessage(message);
+                    break;
+                case 'TURN_CHANGED':
+                    parseTurnChangeMessage(message);
+                    break;
+                case 'PLAYER_ELIMINATED':
+                    parsePlayerEliminatedMessage(message);
+                    break;
+                case 'ROUND_STARTED':
+                    parseRoundStartMessage(message);
+                    break;
+                case 'GAME_ENDED':
+                    gameState.gameStarted = false;
+                    break;
+            }
+            
+            updateGameTableDisplay();
+        }
+        
+        function parseGameStartMessage(message) {
+            // Extract player count from "Starting new game with X players"
+            const match = message.match(/with (\d+) players/);
+            if (match) {
+                gameState.playerCount = parseInt(match[1]);
+            }
+        }
+        
+        function parsePlayerInitMessage(message) {
+            // Extract player info from initialization message
+            // Format: "Player [name] initialized with [X] cards"
+            const match = message.match(/Player (\w+) initialized/);
+            if (match) {
+                const playerName = match[1];
+                if (!gameState.players[playerName]) {
+                    gameState.players[playerName] = {
+                        name: playerName,
+                        cardCount: 5,
+                        isAlive: true,
+                        isCurrentPlayer: false
+                    };
+                }
+            }
+        }
+        
+        function parseClaimMessage(message) {
+            // Extract claim info from "Player [name] claims [count] [rank](s)"
+            const match = message.match(/Player (\w+) claims (\d+) (\w+)/);
+            if (match) {
+                gameState.lastClaim = {
+                    player: match[1],
+                    count: parseInt(match[2]),
+                    rank: match[3]
+                };
+            }
+        }
+        
+        function parseTurnChangeMessage(message) {
+            // Extract current player from "Turn passed to: [name]"
+            const match = message.match(/Turn passed to: (\w+)/);
+            if (match) {
+                // Clear previous current player
+                Object.values(gameState.players).forEach(p => p.isCurrentPlayer = false);
+                // Set new current player
+                const playerName = match[1];
+                if (gameState.players[playerName]) {
+                    gameState.players[playerName].isCurrentPlayer = true;
+                }
+                gameState.currentPlayer = playerName;
+            }
+        }
+        
+        function parsePlayerEliminatedMessage(message) {
+            // Extract eliminated player
+            const match = message.match(/(\w+) is eliminated/);
+            if (match) {
+                const playerName = match[1];
+                if (gameState.players[playerName]) {
+                    gameState.players[playerName].isAlive = false;
+                }
+            }
+        }
+        
+        function parseRoundStartMessage(message) {
+            // Extract round info
+            const roundMatch = message.match(/Round (\d+)/);
+            const rankMatch = message.match(/current rank: (\w+)/);
+            
+            if (roundMatch) {
+                gameState.currentRound = parseInt(roundMatch[1]);
+            }
+            if (rankMatch) {
+                gameState.currentRank = rankMatch[1];
+            }
+        }
+        
+        function showGameTable() {
+            document.getElementById('gameTable').classList.add('table-active');
+        }
+        
+        function hideGameTable() {
+            document.getElementById('gameTable').classList.remove('table-active');
+        }
+        
+        function updateGameTableDisplay() {
+            if (!gameState.gameStarted) return;
+            
+            // Update round info
+            document.getElementById('currentRound').textContent = gameState.currentRound;
+            document.getElementById('currentRank').textContent = gameState.currentRank;
+            document.getElementById('playerCount').textContent = Object.keys(gameState.players).length;
+            
+            // Update last claim
+            const claimDiv = document.getElementById('currentClaim');
+            const claimText = document.getElementById('claimText');
+            if (gameState.lastClaim) {
+                claimText.textContent = `${gameState.lastClaim.player} claims ${gameState.lastClaim.count} ${gameState.lastClaim.rank}(s)`;
+                claimDiv.style.display = 'block';
+            } else {
+                claimDiv.style.display = 'none';
+            }
+            
+            // Update players display
+            const container = document.getElementById('playersContainer');
+            container.innerHTML = '';
+            
+            Object.values(gameState.players).forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-card';
+                
+                if (player.isCurrentPlayer) {
+                    playerDiv.classList.add('current-turn');
+                }
+                if (!player.isAlive) {
+                    playerDiv.classList.add('eliminated');
+                }
+                
+                playerDiv.innerHTML = `
+                    <div class="player-name">${player.name} ${player.name === username ? '(You)' : ''}</div>
+                    <div class="player-status">${player.isAlive ? 'Alive' : 'Eliminated'} ${player.isCurrentPlayer ? '- Current Turn' : ''}</div>
+                    <div class="player-cards">Cards: ${player.cardCount}</div>
+                `;
+                
+                container.appendChild(playerDiv);
+            });
+        }
+        
+        function showRevolverView(message) {
+            const revolverView = document.getElementById('revolverView');
+            const revolverMessage = document.getElementById('revolverMessage');
+            const revolverResult = document.getElementById('revolverResult');
+            
+            revolverMessage.textContent = message;
+            revolverResult.textContent = '';
+            revolverView.classList.add('show');
+            
+            // Simulate spinning animation
+            let spinCount = 0;
+            const spinInterval = setInterval(() => {
+                spinCount++;
+                revolverMessage.textContent = `Spinning... ${'.'.repeat(spinCount % 4)}`;
+                
+                if (spinCount >= 20) {
+                    clearInterval(spinInterval);
+                    
+                    // Show result
+                    if (message.includes('BANG')) {
+                        revolverResult.innerHTML = '<span style="color: #ff0000; font-size: 36px;">BANG!</span>';
+                        revolverMessage.textContent = 'The bullet fires! Player eliminated.';
+                    } else {
+                        revolverResult.innerHTML = '<span style="color: #44ff44; font-size: 36px;">CLICK!</span>';
+                        revolverMessage.textContent = 'Empty chamber - player survives.';
+                    }
+                    
+                    // Hide after delay
+                    setTimeout(() => {
+                        revolverView.classList.remove('show');
+                    }, 3000);
+                }
+            }, 150);
         }
         
         // Initialize on page load

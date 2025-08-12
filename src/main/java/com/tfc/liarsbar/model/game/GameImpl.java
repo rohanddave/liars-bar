@@ -206,106 +206,113 @@ public class GameImpl implements Game {
   public String getGameState(Player player) {
     StringBuilder sb = new StringBuilder();
     
-    // Game header
-    sb.append("=== LIARS BAR - GAME STATE ===\n");
+    // ASCII header with game info
+    sb.append("╔═══════════════════════════════════════════════════════╗\n");
+    sb.append("║                      LIARS BAR                       ║\n");
+    sb.append("╠═══════════════════════════════════════════════════════╣\n");
     
-    // Game status
+    // Game status line
+    String status;
     if (!gameStarted) {
-      sb.append("Status: WAITING TO START\n");
+      status = "WAITING TO START";
     } else if (isGameOver()) {
-      sb.append("Status: GAME OVER\n");
       try {
         Player winner = getWinner();
-        sb.append("Winner: ").append(winner.getName()).append("\n");
+        status = "GAME OVER - Winner: " + winner.getName();
       } catch (Exception e) {
-        sb.append("Winner: No winner (all eliminated)\n");
+        status = "GAME OVER - No Winner";
       }
     } else {
-      sb.append("Status: GAME IN PROGRESS\n");
+      status = "IN PROGRESS";
     }
+    sb.append(String.format("║ Status: %-45s ║\n", status));
     
     // Current round and rank
     if (currentRound != null) {
-      sb.append("Current Round: ").append(getCurrentRoundNumber() + 1).append("\n");
-      sb.append("Current Rank: ").append(getRank()).append("\n");
+      String roundInfo = "Round " + (getCurrentRoundNumber() + 1) + " - " + getRank();
+      sb.append(String.format("║ %s%s ║\n", roundInfo, " ".repeat(53 - roundInfo.length())));
       
       Player currentPlayer = getCurrentPlayer();
       if (currentPlayer != null) {
-        sb.append("Current Turn: ").append(currentPlayer.getName()).append("\n");
+        String turnInfo = "Current Turn: " + currentPlayer.getName();
+        sb.append(String.format("║ %s%s ║\n", turnInfo, " ".repeat(53 - turnInfo.length())));
       }
     }
     
     // Last claim info
     Claim lastClaim = getLastClaim();
     if (lastClaim != null) {
-      sb.append("Last Claim: ").append(lastClaim.getPlayer().getName())
-        .append(" claimed ").append(lastClaim.getCount())
-        .append(" ").append(lastClaim.getRank())
-        .append(lastClaim.getCount() > 1 ? "s" : "")
-        .append(lastClaim.isSettled() ? " (SETTLED)" : " (CHALLENGEABLE)")
-        .append("\n");
+      String claimInfo = lastClaim.getPlayer().getName() + " claimed " + 
+                        lastClaim.getCount() + " " + lastClaim.getRank() +
+                        (lastClaim.getCount() > 1 ? "s" : "") +
+                        (lastClaim.isSettled() ? " [SETTLED]" : " [CHALLENGEABLE]");
+      sb.append(String.format("║ Last: %-47s ║\n", claimInfo));
     }
     
-    sb.append("\n=== PLAYERS ===\n");
+    sb.append("╠═══════════════════════════════════════════════════════╣\n");
     
-    // Player information
+    // Player information in a compact table format
     for (Player p : players) {
-      sb.append("Player: ").append(p.getName());
+      String playerName = p.getName();
+      String statusIcon = p.isAlive() ? "●" : "○";
+      String statusText = p.isAlive() ? "ALIVE" : "DEAD ";
       
-      // Alive/Dead status
-      if (p.isAlive()) {
-        sb.append(" [ALIVE]");
-      } else {
-        sb.append(" [ELIMINATED]");
-      }
+      // Player header line
+      sb.append(String.format("║ %s %s %-10s", statusIcon, statusText, playerName));
       
-      // Card count (show actual hand only for requesting player)
+      // Cards info
       if (p.equals(player) && p.getHand() != null) {
-        sb.append("\n  Your Hand (").append(p.getHand().getSize()).append(" cards): ");
-        
-        // Show actual cards
+        sb.append(" [Your Hand: ");
         for (int i = 0; i < p.getHand().getSize(); i++) {
-          if (i > 0) sb.append(", ");
+          if (i > 0) sb.append(",");
           try {
             Card card = p.getHand().getAt(i);
-            sb.append(card.getRank());
+            sb.append(card.getRank().toString().substring(0, 1)); // First letter only for compactness
           } catch (Exception e) {
             sb.append("?");
           }
         }
-        sb.append("\n");
+        sb.append("]");
       } else if (p.getHand() != null) {
-        sb.append("\n  Cards: ").append(p.getHand().getSize()).append(" remaining\n");
+        sb.append(String.format(" Cards:%d", p.getHand().getSize()));
       } else {
-        sb.append("\n  Cards: 0 remaining\n");
+        sb.append(" Cards:0");
       }
       
-      // Revolver position
+      // Revolver info
       if (p.getRevolver() != null) {
-        sb.append("  Revolver: Chamber ").append(p.getRevolver().getCurrentIndex() + 1).append("/6\n");
-      } else {
-        sb.append("  Revolver: Not initialized\n");
+        sb.append(String.format(" Chamber:%d/6", p.getRevolver().getCurrentIndex() + 1));
       }
       
-      sb.append("\n");
+      // Pad to end of line
+      String line = sb.toString();
+      int lastNewline = line.lastIndexOf('\n');
+      int currentLineLength = line.length() - lastNewline - 1;
+      if (currentLineLength < 54) {
+        sb.append(" ".repeat(54 - currentLineLength));
+      }
+      sb.append(" ║\n");
     }
     
-    // Active vs Eliminated summary
-    sb.append("=== SUMMARY ===\n");
-    sb.append("Active Players: ").append(getActivePlayers().size()).append("\n");
-    sb.append("Eliminated Players: ").append(getEliminatedPlayers().size()).append("\n");
+    // Summary footer
+    sb.append("╠═══════════════════════════════════════════════════════╣\n");
+    String summary = getActivePlayers().size() + " Active, " + getEliminatedPlayers().size() + " Eliminated";
+    sb.append(String.format("║ %s%s ║\n", summary, " ".repeat(53 - summary.length())));
     
     if (!getEliminatedPlayers().isEmpty()) {
-      sb.append("Eliminated: ");
+      StringBuilder eliminatedNames = new StringBuilder("Out: ");
       List<Player> eliminated = getEliminatedPlayers();
       for (int i = 0; i < eliminated.size(); i++) {
-        if (i > 0) sb.append(", ");
-        sb.append(eliminated.get(i).getName());
+        if (i > 0) eliminatedNames.append(", ");
+        eliminatedNames.append(eliminated.get(i).getName());
       }
-      sb.append("\n");
+      String elimLine = eliminatedNames.toString();
+      if (elimLine.length() <= 53) {
+        sb.append(String.format("║ %s%s ║\n", elimLine, " ".repeat(53 - elimLine.length())));
+      }
     }
     
-    sb.append("===============================");
+    sb.append("╚═══════════════════════════════════════════════════════╝");
     
     return sb.toString();
   }

@@ -11,7 +11,7 @@ public class ShootAction implements GameAction {
   @Override
   public ActionResult execute(Game game, Player player) {
     try {
-      System.out.println("🔫 Player chooses to shoot themselves...");
+      System.out.println("Player chooses to shoot themselves...");
       boolean eliminated = player.shoot();
       game.moveToNextMove();
       

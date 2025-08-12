@@ -34,7 +34,7 @@ public class RoomWebSocketHandler extends TextWebSocketHandler {
 
     this.roomService.addUserToRoom(roomId, new UserImpl(username, session));
 
-    session.sendMessage(new TextMessage("Welcome " + username + " to room " + roomId));
+    session.sendMessage(new TextMessage("Connected to room " + roomId));
   }
 
   @Override

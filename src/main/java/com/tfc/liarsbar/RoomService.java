@@ -58,6 +58,13 @@ public class RoomService {
         return roomFactory.createRoom(id, listener);
       });
       
+      // Register the user's WebSocket session with the event listener
+      GameEventListener listener = eventListenerMap.get(roomId);
+      if (listener instanceof WebSocketGameEventListener) {
+        WebSocketGameEventListener wsListener = (WebSocketGameEventListener) listener;
+        wsListener.registerPlayerSession(user.getUserName(), user.getSession());
+      }
+      
       room.addUser(user);
       
       GameEvent event = new GameEventImpl(GameEventType.ROOM_JOINED, 
@@ -100,6 +107,13 @@ public class RoomService {
     try {
       Room room = rooms.get(roomId);
       if (room != null) {
+        // Unregister the user's WebSocket session from the event listener
+        GameEventListener listener = eventListenerMap.get(roomId);
+        if (listener instanceof WebSocketGameEventListener) {
+          WebSocketGameEventListener wsListener = (WebSocketGameEventListener) listener;
+          wsListener.unregisterPlayerSession(user.getUserName());
+        }
+        
         room.removeUser(user);
         
         GameEvent event = new GameEventImpl(GameEventType.ROOM_LEFT, 

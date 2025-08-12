@@ -44,9 +44,9 @@ public class ShootCommand extends AbstractGameCommand {
         if (result.isSuccess()) {
             // Log the shooting result
             if (player.isAlive()) {
-                System.out.println("🔫 Click! " + player.getName() + " survives this round");
+                System.out.println("Click! " + player.getName() + " survives this round");
             } else {
-                System.out.println("💥 BANG! " + player.getName() + " was eliminated!");
+                System.out.println("BANG! " + player.getName() + " was eliminated!");
             }
         }
     }
